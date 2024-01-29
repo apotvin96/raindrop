@@ -1,13 +1,43 @@
-pub mod vk_engine;
+extern crate log;
+extern crate simplelog;
 
-use crate::vk_engine::VulkanEngine;
+use std::fs::File;
+
+use simplelog::{
+    ColorChoice, CombinedLogger, ConfigBuilder, LevelFilter, TermLogger, TerminalMode, WriteLogger, TargetPadding
+};
+
+pub mod config;
+pub mod engine;
+
+use config::Config;
+
+use crate::engine::hook;
 
 fn main() {
-    let mut engine = VulkanEngine::new();
+    let log_config = ConfigBuilder::new()
+        .add_filter_ignore(format!("{}", "winit"))
+        .set_thread_level(LevelFilter::Off)
+        .set_location_level(LevelFilter::Off)
+        .set_target_padding(TargetPadding::Right(40))
+        .build();
 
-    engine.init();
+    CombinedLogger::init(vec![
+        TermLogger::new(
+            LevelFilter::Warn,
+            log_config.clone(),
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(
+            LevelFilter::Trace,
+            log_config.clone(),
+            File::create("engine.log").unwrap(),
+        ),
+    ])
+    .unwrap();
 
-    engine.run();
+    let config = Config::from_file("config.toml");
 
-    engine.cleanup();
+    hook(config);
 }
