@@ -1,9 +1,9 @@
 use ash::vk::Extent2D;
+use log::trace;
 use winit::{
     event::{Event, VirtualKeyCode, WindowEvent},
     window::Window,
 };
-use log::trace;
 
 use crate::config::Config;
 
@@ -13,32 +13,24 @@ pub struct Engine {
     is_initialized: bool,
     frame_number: u32,
     stop_rendering: bool,
-    window_extent: Extent2D,
     window_resized: bool,
     renderer: Renderer,
 }
 
 impl Engine {
-    pub fn new() -> Engine {
-        Engine {
-            is_initialized: false,
+    pub fn new(config: Config, window: &winit::window::Window) -> Result<Engine, String> {
+        let renderer = match Renderer::new(config, window) {
+            Ok(renderer) => renderer,
+            Err(e) => return Err("Failed to init engine: renderer: ".to_owned() + &e),
+        };
+
+        Ok(Engine {
+            is_initialized: true,
             frame_number: 0,
             stop_rendering: false,
-            window_extent: Extent2D {
-                width: 800,
-                height: 600,
-            },
             window_resized: false,
-            renderer: Renderer::new(),
-        }
-    }
-
-    pub fn init(&mut self, config: Config, window: &Window) {
-        trace!("Initializing");
-
-        self.renderer.init(config, window, self.window_extent);
-
-        self.is_initialized = true;
+            renderer: renderer,
+        })
     }
 
     pub fn update(&mut self) {
@@ -85,7 +77,7 @@ impl Engine {
     }
 
     pub fn cleanup(&self) {
-        println!("Cleaning");
+        trace!("Cleaning");
     }
 }
 

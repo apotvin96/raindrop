@@ -14,9 +14,7 @@ pub fn hook(config: Config) {
 
     let window = Arc::new(window);
 
-    let mut engine = Engine::new();
-
-    engine.init(config, window.as_ref());
+    let mut engine = Engine::new(config, &window).expect("Failed to init engine");
 
     game_loop(
         event_loop,
