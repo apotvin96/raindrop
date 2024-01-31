@@ -1,14 +1,15 @@
 use std::ops::BitOrAssign;
 
 use ash::{
-    vk::{self, InstanceCreateFlags},
+    extensions::ext::DebugUtils,
+    vk::{self, DebugUtilsMessengerEXT, InstanceCreateFlags, PhysicalDevice, SurfaceKHR},
     Entry,
 };
-use log::trace;
+use log::{error, info, trace, warn};
 
 use crate::config::Config;
 
-use raw_window_handle::HasRawDisplayHandle;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 unsafe extern "system" fn vulkan_debug_utils_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
@@ -19,13 +20,35 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
     let message = std::ffi::CStr::from_ptr((*p_callback_data).p_message);
     let severity = format!("{:?}", message_severity).to_lowercase();
     let ty = format!("{:?}", message_type).to_lowercase();
-    println!("[Debug][{}][{}] {:?}", severity, ty, message);
+
+    match message_severity {
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
+            error!("Vk Validation Layer Error: {} {:?}", ty, message);
+        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
+            warn!("Vk Validation Layer Warn: {} {:?}", ty, message);
+        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::INFO => {
+            info!("Vk Validation Layer Info: {} {:?}", ty, message);
+        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE => {
+            trace!("Vk Validation Layer Trace: {} {:?}", ty, message);
+        }
+        _ => {
+            error!("Vk Validation Layer Unknown: {} {:?}", ty, message)
+        }
+    }
+
     vk::FALSE
 }
 
 pub struct Renderer {
     entry: ash::Entry,
     instance: ash::Instance,
+    debug_messenger: DebugUtilsMessengerEXT,
+    debug_loader: DebugUtils,
+    physical_device: PhysicalDevice,
+    surface: SurfaceKHR,
 }
 
 impl Renderer {
@@ -34,14 +57,28 @@ impl Renderer {
 
         let entry = Entry::linked();
 
-        let instance = match Self::init_instance(&entry, window) {
-            Ok(instance) => instance,
+        let (instance, debug_loader, debug_messenger) = match Self::init_instance(&entry, window) {
+            Ok(info) => info,
             Err(e) => return Err("Failed to init renderer: instance: ".to_owned() + &e),
         };
 
+        let physical_device = match Self::init_physical_device(&instance) {
+            Ok(physical_device) => physical_device,
+            Err(e) => return Err("Failed to init renderer: physical_device: ".to_owned() + &e),
+        };
+
+        let surface = match Self::init_surface(&entry, &window, &instance, physical_device) {
+            Ok(surface) => surface,
+            Err(e) => return Err("Failed to init renderer: surface: ".to_owned() + &e),
+        };
+
         Ok(Renderer {
-            entry: entry,
-            instance: instance,
+            entry,
+            instance,
+            debug_loader,
+            debug_messenger,
+            physical_device,
+            surface,
         })
     }
 
@@ -52,7 +89,9 @@ impl Renderer {
     fn init_instance(
         entry: &ash::Entry,
         window: &winit::window::Window,
-    ) -> Result<ash::Instance, String> {
+    ) -> Result<(ash::Instance, DebugUtils, DebugUtilsMessengerEXT), String> {
+        trace!("Initializing Vk Instance");
+
         let engine_name = std::ffi::CString::new("Vulkan").unwrap();
         let application_name = std::ffi::CString::new("VKGuide App").unwrap();
 
@@ -112,15 +151,88 @@ impl Renderer {
             .enabled_extension_names(&extension_name_pointers)
             .flags(instance_create_flags);
 
-        match unsafe { entry.create_instance(&instance_create_info, None) } {
-            Ok(instance) => Ok(instance),
-            Err(e) => Err("Failed to create instance: ".to_owned() + &e.to_string()),
+        let instance = match unsafe { entry.create_instance(&instance_create_info, None) } {
+            Ok(instance) => instance,
+            Err(e) => return Err("Failed to create instance: ".to_owned() + &e.to_string()),
+        };
+
+        let debug_utils_loader = ash::extensions::ext::DebugUtils::new(entry, &instance);
+        let debug_utils_messenger = match unsafe {
+            debug_utils_loader.create_debug_utils_messenger(&debug_create_info, None)
+        } {
+            Ok(messenger) => messenger,
+            Err(e) => return Err("Failed to create debug messenger: ".to_owned() + &e.to_string()),
+        };
+
+        Ok((instance, debug_utils_loader, debug_utils_messenger))
+    }
+
+    fn init_physical_device(instance: &ash::Instance) -> Result<PhysicalDevice, String> {
+        trace!("Initializing: Vk Physical Device");
+
+        let physical_devices = match unsafe { instance.enumerate_physical_devices() } {
+            Ok(physical_devices) => physical_devices,
+            Err(e) => {
+                return Err("Failed to enumerate physical devices: ".to_owned() + &e.to_string())
+            }
+        };
+
+        // TODO: Prefer discrete GPU, not require, definitely require api version 1.2
+        for p_device in &physical_devices {
+            let properties = unsafe { instance.get_physical_device_properties(*p_device) };
+
+            if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU
+                && vk::api_version_major(properties.api_version) >= 1
+                && vk::api_version_minor(properties.api_version) >= 2
+            {
+                return Ok(*p_device);
+            }
         }
+
+        if physical_devices.len() > 0 {
+            let p_device = &physical_devices[0];
+
+            warn!("Unable to find discrete GPU with requested properties, using first available");
+
+            return Ok(*p_device);
+        } else {
+            return Err("No physical devices found".to_owned());
+        }
+    }
+
+    fn init_surface(
+        entry: &ash::Entry,
+        window: &winit::window::Window,
+        instance: &ash::Instance,
+        physical_device: PhysicalDevice,
+    ) -> Result<SurfaceKHR, String> {
+        trace!("Initializing: Vk Surface");
+
+        let surface = match unsafe {
+            ash_window::create_surface(
+                entry,
+                instance,
+                window.raw_display_handle(),
+                window.raw_window_handle(),
+                None,
+            )
+        } {
+            Ok(surface) => surface,
+            Err(e) => return Err("Failed to create surface: ".to_owned() + &e.to_string()),
+        };
+
+        Ok(surface)
     }
 }
 
 impl Drop for Renderer {
     fn drop(&mut self) {
         trace!("Cleaning: Renderer");
+
+        unsafe {
+            self.debug_loader
+                .destroy_debug_utils_messenger(self.debug_messenger, None);
+            self.instance.destroy_instance(None);
+        }
     }
 }
