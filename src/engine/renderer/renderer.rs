@@ -82,10 +82,6 @@ impl Renderer {
         })
     }
 
-    pub fn render(&mut self) {
-        trace!("Rendering");
-    }
-
     fn init_instance(
         entry: &ash::Entry,
         window: &winit::window::Window,
@@ -177,27 +173,34 @@ impl Renderer {
             }
         };
 
-        // TODO: Prefer discrete GPU, not require, definitely require api version 1.2
-        for p_device in &physical_devices {
+        // Find the absolute minimum requirements for a physical device
+        let meets_requirements_devices = physical_devices
+            .iter()
+            .filter(|&p_device| {
+                let properties = unsafe { instance.get_physical_device_properties(*p_device) };
+
+                return vk::api_version_major(properties.api_version) >= 1
+                    && vk::api_version_minor(properties.api_version) >= 2;
+            })
+            .collect::<Vec<&PhysicalDevice>>();
+
+        // There is nothing we can do if we don't have a physical device that meets the requirements
+        if meets_requirements_devices.len() == 0 {
+            panic!("No physical devices found that meet the requirements")
+        }
+
+        // Prefer a discrete GPU if available
+        for p_device in meets_requirements_devices {
             let properties = unsafe { instance.get_physical_device_properties(*p_device) };
 
-            if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU
-                && vk::api_version_major(properties.api_version) >= 1
-                && vk::api_version_minor(properties.api_version) >= 2
-            {
+            if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU {
                 return Ok(*p_device);
             }
         }
 
-        if physical_devices.len() > 0 {
-            let p_device = &physical_devices[0];
+        warn!("Unable to find discrete GPU with requested properties, using first available");
 
-            warn!("Unable to find discrete GPU with requested properties, using first available");
-
-            return Ok(*p_device);
-        } else {
-            return Err("No physical devices found".to_owned());
-        }
+        return Ok(physical_devices[0]);
     }
 
     fn init_surface(
@@ -222,6 +225,10 @@ impl Renderer {
         };
 
         Ok(surface)
+    }
+
+    pub fn render(&mut self) {
+        trace!("Rendering");
     }
 }
 
