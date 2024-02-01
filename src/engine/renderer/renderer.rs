@@ -49,6 +49,7 @@ pub struct Renderer {
     debug_loader: DebugUtils,
     physical_device: PhysicalDevice,
     surface: SurfaceKHR,
+    surface_loader: ash::extensions::khr::Surface
 }
 
 impl Renderer {
@@ -67,7 +68,7 @@ impl Renderer {
             Err(e) => return Err("Failed to init renderer: physical_device: ".to_owned() + &e),
         };
 
-        let surface = match Self::init_surface(&entry, &window, &instance, physical_device) {
+        let (surface, surface_loader)= match Self::init_surface(&entry, &window, &instance, physical_device) {
             Ok(surface) => surface,
             Err(e) => return Err("Failed to init renderer: surface: ".to_owned() + &e),
         };
@@ -79,6 +80,7 @@ impl Renderer {
             debug_messenger,
             physical_device,
             surface,
+            surface_loader
         })
     }
 
@@ -208,7 +210,7 @@ impl Renderer {
         window: &winit::window::Window,
         instance: &ash::Instance,
         physical_device: PhysicalDevice,
-    ) -> Result<SurfaceKHR, String> {
+    ) -> Result<(SurfaceKHR, ash::extensions::khr::Surface), String> {
         trace!("Initializing: Vk Surface");
 
         let surface = match unsafe {
@@ -224,7 +226,9 @@ impl Renderer {
             Err(e) => return Err("Failed to create surface: ".to_owned() + &e.to_string()),
         };
 
-        Ok(surface)
+        let surface_loader = ash::extensions::khr::Surface::new(&entry, &instance);
+
+        Ok((surface, surface_loader))
     }
 
     pub fn render(&mut self) {
@@ -237,6 +241,7 @@ impl Drop for Renderer {
         trace!("Cleaning: Renderer");
 
         unsafe {
+            self.surface_loader.destroy_surface(self.surface, None);
             self.debug_loader
                 .destroy_debug_utils_messenger(self.debug_messenger, None);
             self.instance.destroy_instance(None);
