@@ -1,20 +1,30 @@
 use std::sync::Arc;
 
-use winit::{event_loop::EventLoop, window::Window};
+use winit::{
+    event_loop::EventLoop,
+    window::WindowBuilder,
+};
 
 use game_loop::game_loop;
 
+use super::Engine;
 use crate::config::Config;
-use crate::engine::Engine;
 
 pub fn hook(config: Config) {
     let event_loop = EventLoop::new();
 
-    let window = Window::new(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_title(config.info.title.clone())
+        .with_inner_size(winit::dpi::LogicalSize::new(
+            config.renderer.window_width,
+            config.renderer.window_height,
+        ))
+        .build(&event_loop)
+        .unwrap();
 
     let window = Arc::new(window);
 
-    let mut engine = Engine::new(config, &window).expect("Failed to init engine");
+    let engine = Engine::new(config, &window).expect("Failed to init engine");
 
     game_loop(
         event_loop,

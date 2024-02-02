@@ -4,7 +4,8 @@ extern crate simplelog;
 use std::fs::File;
 
 use simplelog::{
-    ColorChoice, CombinedLogger, ConfigBuilder, LevelFilter, TermLogger, TerminalMode, WriteLogger, TargetPadding
+    ColorChoice, CombinedLogger, ConfigBuilder, LevelFilter, TargetPadding, TermLogger,
+    TerminalMode, WriteLogger,
 };
 
 pub mod config;
@@ -12,11 +13,11 @@ pub mod engine;
 
 use config::Config;
 
-use crate::engine::hook;
+use engine::hook;
 
 fn main() {
     let log_config = ConfigBuilder::new()
-        .add_filter_ignore(format!("{}", "winit"))
+        .add_filter_ignore("winit".to_string())
         .set_thread_level(LevelFilter::Off)
         .set_location_level(LevelFilter::Off)
         .set_target_padding(TargetPadding::Right(40))
@@ -37,7 +38,7 @@ fn main() {
     ])
     .unwrap();
 
-    let config = Config::from_file("config.toml");
+    let config = Config::from_file("game_config.toml");
 
     hook(config);
 }

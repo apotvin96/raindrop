@@ -1,0 +1,6 @@
+[info]
+title = "VKGuide Renderer"
+
+[renderer]
+window_width = 800
+window_height = 600
