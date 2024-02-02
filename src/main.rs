@@ -12,7 +12,6 @@ pub mod config;
 pub mod engine;
 
 use config::Config;
-
 use engine::hook;
 
 fn main() {

@@ -11,8 +11,8 @@ use log::{error, info, trace, warn};
 
 use raw_window_handle::HasRawDisplayHandle;
 
-use self::structs::queues::Queues;
-use self::structs::surface::Surface;
+use structs::queues::Queues;
+use structs::surface::Surface;
 use crate::config::Config;
 
 unsafe extern "system" fn vulkan_debug_utils_callback(
@@ -57,7 +57,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(config: Config, window: &winit::window::Window) -> Result<Renderer, String> {
+    pub fn new(_config: Config, window: &winit::window::Window) -> Result<Renderer, String> {
         trace!("Initializing: Renderer");
 
         let entry = Entry::linked();
@@ -77,7 +77,7 @@ impl Renderer {
             Err(e) => return Err("Failed to init renderer: surface: ".to_owned() + &e),
         };
 
-        let queues = match Queues::new() {
+        let queues = match Queues::new(&instance) {
             Ok(queues) => queues,
             Err(e) => return Err("Failed to init renderer: queues: ".to_owned() + &e),
         };

@@ -40,7 +40,7 @@ impl Engine {
         trace!("Updating");
     }
 
-    pub fn render(&mut self, window: &Window) {
+    pub fn render(&mut self, _window: &Window) {
         trace!("Rendering");
 
         self.renderer.render();
