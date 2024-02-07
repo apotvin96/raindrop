@@ -20,7 +20,7 @@ impl Swapchain {
         surface: &Surface,
         queue: &Queue,
     ) -> Result<Swapchain, String> {
-        let graphics_queue_indices = [queue.graphics_queue_index];
+        let graphics_queue_indices = [queue.main_queue_index];
 
         let create_info = SwapchainCreateInfoKHR::builder()
             .surface(surface.surface)

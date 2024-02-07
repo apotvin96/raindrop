@@ -247,11 +247,11 @@ impl Renderer {
 
         let queue_create_infos = [
             vk::DeviceQueueCreateInfo::builder()
-                .queue_family_index(queue.graphics_queue_index)
+                .queue_family_index(queue.main_queue_index)
                 .queue_priorities(&[1.0])
                 .build(),
             vk::DeviceQueueCreateInfo::builder()
-                .queue_family_index(queue.transfer_queue_index)
+                .queue_family_index(queue.transfer_only_queue_index)
                 .queue_priorities(&[1.0])
                 .build(),
         ];
