@@ -1,4 +1,4 @@
-pub mod structs;
+mod structs;
 
 use std::{mem::ManuallyDrop, ops::BitOrAssign};
 
@@ -11,9 +11,11 @@ use log::{error, info, trace, warn};
 
 use raw_window_handle::HasRawDisplayHandle;
 
-use structs::queues::Queues;
-use structs::surface::Surface;
 use crate::config::Config;
+use structs::Surface;
+
+use self::structs::Queue;
+use self::structs::Swapchain;
 
 unsafe extern "system" fn vulkan_debug_utils_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
@@ -53,7 +55,8 @@ pub struct Renderer {
     physical_device: PhysicalDevice,
     surface: ManuallyDrop<Surface>,
     device: Device,
-    queues: Queues,
+    queue: Queue,
+    swapchain: ManuallyDrop<Swapchain>,
 }
 
 impl Renderer {
@@ -72,19 +75,24 @@ impl Renderer {
             Err(e) => return Err("Failed to init renderer: physical_device: ".to_owned() + &e),
         };
 
-        let surface = match Surface::new(&entry, &instance, window) {
+        let surface = match Surface::new(&entry, &instance, &physical_device, window) {
             Ok(surface) => surface,
             Err(e) => return Err("Failed to init renderer: surface: ".to_owned() + &e),
         };
 
-        let queues = match Queues::new(&instance) {
+        let queue = match Queue::new(&instance, &physical_device, &surface) {
             Ok(queues) => queues,
             Err(e) => return Err("Failed to init renderer: queues: ".to_owned() + &e),
         };
 
-        let device = match Self::init_device(&instance, &physical_device) {
+        let device = match Self::init_device(&instance, &physical_device, &queue) {
             Ok(device) => device,
             Err(e) => return Err("Failed to init renderer: device: ".to_owned() + &e),
+        };
+
+        let swapchain = match Swapchain::new(&instance, &device, &surface, &queue) {
+            Ok(swapchain) => swapchain,
+            Err(e) => return Err("Failed to init renderer: swapchain: ".to_owned() + &e),
         };
 
         Ok(Renderer {
@@ -95,7 +103,8 @@ impl Renderer {
             physical_device,
             surface: ManuallyDrop::new(surface),
             device,
-            queues,
+            queue,
+            swapchain: ManuallyDrop::new(swapchain),
         })
     }
 
@@ -215,7 +224,7 @@ impl Renderer {
             }
         }
 
-        warn!("Unable to find discrete GPU with preferred properties, using first available");
+        warn!("Unable to find discrete GPU, using first available that meets requirements");
 
         Ok(physical_devices[0])
     }
@@ -223,6 +232,7 @@ impl Renderer {
     fn init_device(
         instance: &Instance,
         physical_device: &PhysicalDevice,
+        queue: &Queue,
     ) -> Result<Device, String> {
         trace!("Initializing: Vk Device");
 
@@ -235,8 +245,20 @@ impl Renderer {
             extension_name_pointers.push(portability_extension.as_ptr());
         }
 
+        let queue_create_infos = [
+            vk::DeviceQueueCreateInfo::builder()
+                .queue_family_index(queue.graphics_queue_index)
+                .queue_priorities(&[1.0])
+                .build(),
+            vk::DeviceQueueCreateInfo::builder()
+                .queue_family_index(queue.transfer_queue_index)
+                .queue_priorities(&[1.0])
+                .build(),
+        ];
+
         let device_create_info = vk::DeviceCreateInfo::builder()
             .enabled_extension_names(&extension_name_pointers)
+            .queue_create_infos(&queue_create_infos)
             .build();
 
         let device =
@@ -258,6 +280,7 @@ impl Drop for Renderer {
         trace!("Cleaning: Renderer");
 
         unsafe {
+            ManuallyDrop::drop(&mut self.swapchain);
             self.device.destroy_device(None);
             ManuallyDrop::drop(&mut self.surface);
             self.debug_loader
