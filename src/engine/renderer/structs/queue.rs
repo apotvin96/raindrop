@@ -2,6 +2,7 @@ use ash::{
     vk::{self, PhysicalDevice},
     Instance,
 };
+use log::warn;
 
 use super::Surface;
 
@@ -60,6 +61,10 @@ impl Queue {
 
         if main_queue_index == NONE_QUEUE_INDEX || transfer_only_queue_index == NONE_QUEUE_INDEX {
             return Err("Failed to find suitable queues".to_owned());
+        }
+
+        if main_queue_index == transfer_only_queue_index {
+            warn!("Using the same queue for graphics and transfer operations")
         }
 
         Ok(Queue {

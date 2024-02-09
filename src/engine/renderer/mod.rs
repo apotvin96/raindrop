@@ -4,7 +4,12 @@ use std::{mem::ManuallyDrop, ops::BitOrAssign};
 
 use ash::{
     extensions::ext::DebugUtils,
-    vk::{self, DebugUtilsMessengerEXT, InstanceCreateFlags, PhysicalDevice},
+    vk::{
+        self, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, ClearValue,
+        DebugUtilsMessengerEXT, Framebuffer, FramebufferCreateInfo, ImageLayout,
+        InstanceCreateFlags, PhysicalDevice, Rect2D, RenderPass, RenderPassCreateInfo,
+        SampleCountFlags, SubpassDescription,
+    },
     Device, Entry, Instance,
 };
 use log::{error, info, trace, warn};
@@ -14,6 +19,7 @@ use raw_window_handle::HasRawDisplayHandle;
 use crate::config::Config;
 use structs::Surface;
 
+use self::structs::CommandManager;
 use self::structs::Queue;
 use self::structs::Swapchain;
 
@@ -48,6 +54,7 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
 }
 
 pub struct Renderer {
+    framenumber: u64,
     entry: Entry,
     instance: Instance,
     debug_messenger: DebugUtilsMessengerEXT,
@@ -57,6 +64,12 @@ pub struct Renderer {
     device: Device,
     queue: Queue,
     swapchain: ManuallyDrop<Swapchain>,
+    command_manager: ManuallyDrop<CommandManager>,
+    render_pass: RenderPass,
+    framebuffers: Vec<Framebuffer>,
+    render_semaphore: vk::Semaphore,
+    present_semaphore: vk::Semaphore,
+    fence: vk::Fence,
 }
 
 impl Renderer {
@@ -95,7 +108,45 @@ impl Renderer {
             Err(e) => return Err("Failed to init renderer: swapchain: ".to_owned() + &e),
         };
 
+        let command_manager = match CommandManager::new(&device, &queue) {
+            Ok(command_manager) => command_manager,
+            Err(e) => return Err("Failed to init renderer: command_manager: ".to_owned() + &e),
+        };
+
+        let render_pass = match Self::init_render_pass(&device, &swapchain) {
+            Ok(render_pass) => render_pass,
+            Err(e) => return Err("Failed to init renderer: render_pass: ".to_owned() + &e),
+        };
+
+        let framebuffers = match Self::init_frame_buffers(&device, &swapchain, &render_pass) {
+            Ok(framebuffers) => framebuffers,
+            Err(e) => return Err("Failed to init renderer: framebuffers: ".to_owned() + &e),
+        };
+
+        let fence_create_info =
+            vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
+
+        let fence = match unsafe { device.create_fence(&fence_create_info, None) } {
+            Ok(fence) => fence,
+            Err(e) => return Err("Failed to create fence: ".to_owned() + &e.to_string()),
+        };
+
+        let semaphore_create_info = vk::SemaphoreCreateInfo::builder().build();
+
+        let render_semaphore =
+            match unsafe { device.create_semaphore(&semaphore_create_info, None) } {
+                Ok(semaphore) => semaphore,
+                Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
+            };
+
+        let present_semaphore =
+            match unsafe { device.create_semaphore(&semaphore_create_info, None) } {
+                Ok(semaphore) => semaphore,
+                Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
+            };
+
         Ok(Renderer {
+            framenumber: 0,
             entry,
             instance,
             debug_loader,
@@ -105,6 +156,12 @@ impl Renderer {
             device,
             queue,
             swapchain: ManuallyDrop::new(swapchain),
+            command_manager: ManuallyDrop::new(command_manager),
+            render_pass,
+            framebuffers,
+            fence,
+            render_semaphore,
+            present_semaphore,
         })
     }
 
@@ -270,8 +327,109 @@ impl Renderer {
         Ok(device)
     }
 
+    fn init_render_pass(device: &Device, swapchain: &Swapchain) -> Result<RenderPass, String> {
+        trace!("Initializing: Vk RenderPass");
+
+        let attachment_description = AttachmentDescription::builder()
+            .format(swapchain.image_format)
+            .samples(SampleCountFlags::TYPE_1)
+            .load_op(AttachmentLoadOp::CLEAR)
+            .store_op(AttachmentStoreOp::STORE)
+            .stencil_load_op(AttachmentLoadOp::DONT_CARE)
+            .stencil_store_op(AttachmentStoreOp::DONT_CARE)
+            .initial_layout(ImageLayout::UNDEFINED)
+            .final_layout(ImageLayout::PRESENT_SRC_KHR)
+            .build();
+
+        let attachment_reference = vk::AttachmentReference::builder()
+            .attachment(0)
+            .layout(ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            .build();
+
+        let subpass_descript = SubpassDescription::builder()
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+            .color_attachments(&[attachment_reference])
+            .build();
+
+        let render_pass_create_info = RenderPassCreateInfo::builder()
+            .attachments(&[attachment_description])
+            .subpasses(&[subpass_descript])
+            .build();
+
+        match unsafe { device.create_render_pass(&render_pass_create_info, None) } {
+            Ok(render_pass) => Ok(render_pass),
+            Err(e) => Err("Failed to create render pass: ".to_owned() + &e.to_string()),
+        }
+    }
+
+    fn init_frame_buffers(
+        device: &Device,
+        swapchain: &Swapchain,
+        render_pass: &RenderPass,
+    ) -> Result<Vec<Framebuffer>, String> {
+        trace!("Initializing: Vk Framebuffers");
+
+        let mut framebuffers: Vec<Framebuffer> = Vec::with_capacity(swapchain.image_views.len());
+
+        for image_view in &swapchain.image_views {
+            let framebuffer_create_info = FramebufferCreateInfo::builder()
+                .render_pass(*render_pass)
+                .width(swapchain.extent.width)
+                .height(swapchain.extent.height)
+                .layers(1)
+                .attachments(&[*image_view])
+                .build();
+
+            let framebuffer = match unsafe {
+                device.create_framebuffer(&framebuffer_create_info, None)
+            } {
+                Ok(framebuffer) => framebuffer,
+                Err(e) => return Err("Failed to create framebuffer: ".to_owned() + &e.to_string()),
+            };
+
+            framebuffers.push(framebuffer);
+        }
+
+        Ok(framebuffers)
+    }
+
     pub fn render(&mut self) {
         trace!("Rendering");
+
+        unsafe { self.device.wait_for_fences(&[self.fence], true, 1000000000) }
+            .expect("Failed to wait for fence");
+
+        unsafe { self.device.reset_fences(&[self.fence]) }.expect("Failed to reset fence");
+
+        let (image_index, _) = self
+            .swapchain
+            .acquire_next_image(self.present_semaphore)
+            .expect("Failed to acquire next image");
+
+        self.command_manager.begin_main_command_buffer();
+
+        let flash = (self.framenumber as f32 / 120.0).sin().abs();
+
+        let clear_value = ClearValue {
+            color: vk::ClearColorValue {
+                float32: [0.0, 0.0, flash, 1.0],
+            },
+        };
+
+        let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+            .render_pass(self.render_pass)
+            .render_area(Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: self.swapchain.extent,
+            })
+            .framebuffer(self.framebuffers[image_index as usize])
+            .clear_values(&[clear_value])
+            .build();
+
+        self.command_manager
+            .begin_render_pass(&render_pass_begin_info);
+
+        self.command_manager.end_render_pass();
     }
 }
 
@@ -280,6 +438,14 @@ impl Drop for Renderer {
         trace!("Cleaning: Renderer");
 
         unsafe {
+            self.device.destroy_semaphore(self.render_semaphore, None);
+            self.device.destroy_semaphore(self.present_semaphore, None);
+            self.device.destroy_fence(self.fence, None);
+            for framebuffer in &self.framebuffers {
+                self.device.destroy_framebuffer(*framebuffer, None);
+            }
+            self.device.destroy_render_pass(self.render_pass, None);
+            ManuallyDrop::drop(&mut self.command_manager);
             ManuallyDrop::drop(&mut self.swapchain);
             self.device.destroy_device(None);
             ManuallyDrop::drop(&mut self.surface);

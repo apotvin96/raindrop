@@ -1,5 +1,5 @@
 use ash::{
-    vk::{self, Image, ImageView, SwapchainCreateInfoKHR, SwapchainKHR},
+    vk::{self, Format, Image, ImageView, SwapchainCreateInfoKHR, SwapchainKHR},
     Device, Instance,
 };
 
@@ -9,8 +9,10 @@ pub struct Swapchain {
     device: Device,
     loader: ash::extensions::khr::Swapchain,
     swapchain: SwapchainKHR,
+    pub extent: vk::Extent2D,
+    pub image_format: Format,
     images: Vec<Image>,
-    image_views: Vec<ImageView>,
+    pub image_views: Vec<ImageView>,
 }
 
 impl Swapchain {
@@ -21,6 +23,8 @@ impl Swapchain {
         queue: &Queue,
     ) -> Result<Swapchain, String> {
         let graphics_queue_indices = [queue.main_queue_index];
+
+        let extent = surface.capabilities.current_extent;
 
         let create_info = SwapchainCreateInfoKHR::builder()
             .surface(surface.surface)
@@ -34,7 +38,7 @@ impl Swapchain {
             .image_array_layers(1)
             .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
             .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .image_extent(surface.capabilities.current_extent)
+            .image_extent(extent)
             .pre_transform(surface.capabilities.current_transform)
             .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
             .present_mode(vk::PresentModeKHR::FIFO)
@@ -53,6 +57,8 @@ impl Swapchain {
             Err(e) => return Err("Failed to get swapchain images: ".to_owned() + &e.to_string()),
         };
 
+        let image_format = surface.formats.first().unwrap().format;
+
         let mut image_views: Vec<vk::ImageView> = Vec::with_capacity(images.len());
 
         for image in &images {
@@ -67,7 +73,7 @@ impl Swapchain {
             let image_view_create_info = vk::ImageViewCreateInfo::builder()
                 .image(*image)
                 .view_type(vk::ImageViewType::TYPE_2D)
-                .format(surface.formats.first().unwrap().format)
+                .format(image_format)
                 .subresource_range(subresource_range)
                 .build();
 
@@ -85,9 +91,21 @@ impl Swapchain {
             device: device.clone(),
             loader,
             swapchain,
+            extent,
+            image_format,
             images,
             image_views,
         })
+    }
+
+    pub fn acquire_next_image(&self, semaphore: vk::Semaphore) -> Result<(u32, bool), String> {
+        match unsafe {
+            self.loader
+                .acquire_next_image(self.swapchain, 1000000000, semaphore, vk::Fence::null())
+        } {
+            Ok((image_index, is_suboptimal)) => Ok((image_index, is_suboptimal)),
+            Err(e) => Err("Failed to acquire next image: ".to_owned() + &e.to_string()),
+        }
     }
 }
 
