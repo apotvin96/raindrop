@@ -2,13 +2,14 @@ use ash::{
     vk::{self, Format, Image, ImageView, SwapchainCreateInfoKHR, SwapchainKHR},
     Device, Instance,
 };
+use log::warn;
 
 use super::{Queue, Surface};
 
 pub struct Swapchain {
     device: Device,
     loader: ash::extensions::khr::Swapchain,
-    swapchain: SwapchainKHR,
+    pub swapchain: SwapchainKHR,
     pub extent: vk::Extent2D,
     pub image_format: Format,
     images: Vec<Image>,
@@ -105,6 +106,21 @@ impl Swapchain {
         } {
             Ok((image_index, is_suboptimal)) => Ok((image_index, is_suboptimal)),
             Err(e) => Err("Failed to acquire next image: ".to_owned() + &e.to_string()),
+        }
+    }
+
+    pub fn present(&self, queue: &Queue, image_index: u32, wait_semaphores: &[vk::Semaphore]) {
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(&wait_semaphores)
+            .swapchains(&[self.swapchain])
+            .image_indices(&[image_index])
+            .build();
+
+        match unsafe { self.loader.queue_present(queue.main_queue, &present_info) } {
+            Ok(_) => {}
+            Err(e) => {
+                warn!("Failed to present image: {}", e);
+            }
         }
     }
 }

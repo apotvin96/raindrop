@@ -1,16 +1,16 @@
 use ash::{
     vk::{
-        self, CommandBufferResetFlags, CommandBufferUsageFlags, RenderPassBeginInfo,
-        SubpassContents,
+        self, CommandBufferResetFlags, CommandBufferUsageFlags, Fence, PipelineStageFlags, RenderPassBeginInfo, Semaphore, SubmitInfo, SubpassContents
     },
     Device,
 };
 use log::error;
 
-use super::Queue;
+use super::{swapchain, Queue, Swapchain};
 
 pub struct CommandManager {
     device: Device,
+    queue: Queue,
     main_command_pool: vk::CommandPool,
     transfer_command_pool: vk::CommandPool,
     main_command_buffer: vk::CommandBuffer,
@@ -62,6 +62,7 @@ impl CommandManager {
 
         Ok(CommandManager {
             device: device.clone(),
+            queue: queue.clone(),
             main_command_pool,
             transfer_command_pool,
             main_command_buffer,
@@ -111,6 +112,23 @@ impl CommandManager {
 
     pub fn end_render_pass(&self) {
         unsafe { self.device.cmd_end_render_pass(self.main_command_buffer) };
+    }
+
+    pub fn submit_main_command_buffer(&self, wait_semaphores: &[Semaphore], signal_semaphores: &[Semaphore], fence: Fence) {
+        let pipeline_stage_flags = PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT;
+        let submit_info = SubmitInfo::builder()
+            .wait_dst_stage_mask(&[pipeline_stage_flags])
+            .wait_semaphores(&wait_semaphores)
+            .signal_semaphores(&signal_semaphores)
+            .command_buffers(&[self.main_command_buffer])
+            .build();
+
+        match unsafe { self.device.queue_submit(self.queue.main_queue, &[submit_info], fence) } {
+            Ok(_) => {}
+            Err(_) => {
+                error!("Failed to submit command buffer");
+            }
+        }
     }
 }
 

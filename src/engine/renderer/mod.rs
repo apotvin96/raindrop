@@ -7,8 +7,8 @@ use ash::{
     vk::{
         self, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, ClearValue,
         DebugUtilsMessengerEXT, Framebuffer, FramebufferCreateInfo, ImageLayout,
-        InstanceCreateFlags, PhysicalDevice, Rect2D, RenderPass, RenderPassCreateInfo,
-        SampleCountFlags, SubpassDescription,
+        InstanceCreateFlags, PhysicalDevice, PipelineStageFlags, Rect2D, RenderPass,
+        RenderPassCreateInfo, SampleCountFlags, SubmitInfo, SubpassDescription,
     },
     Device, Entry, Instance,
 };
@@ -93,14 +93,19 @@ impl Renderer {
             Err(e) => return Err("Failed to init renderer: surface: ".to_owned() + &e),
         };
 
-        let queue = match Queue::new(&instance, &physical_device, &surface) {
-            Ok(queues) => queues,
-            Err(e) => return Err("Failed to init renderer: queues: ".to_owned() + &e),
+        let queue_indices = match Queue::get_queue_indicies(&instance, &physical_device, &surface) {
+            Ok(indices) => indices,
+            Err(e) => return Err("Failed to init renderer: queue_indices: ".to_owned() + &e),
         };
 
-        let device = match Self::init_device(&instance, &physical_device, &queue) {
+        let device = match Self::init_device(&instance, &physical_device, &queue_indices) {
             Ok(device) => device,
             Err(e) => return Err("Failed to init renderer: device: ".to_owned() + &e),
+        };
+
+        let queue = match Queue::new(&device, queue_indices[0], queue_indices[1]) {
+            Ok(queue) => queue,
+            Err(e) => return Err("Failed to init renderer: queue: ".to_owned() + &e),
         };
 
         let swapchain = match Swapchain::new(&instance, &device, &surface, &queue) {
@@ -289,7 +294,7 @@ impl Renderer {
     fn init_device(
         instance: &Instance,
         physical_device: &PhysicalDevice,
-        queue: &Queue,
+        queue_indices: &[u32; 2],
     ) -> Result<Device, String> {
         trace!("Initializing: Vk Device");
 
@@ -302,16 +307,21 @@ impl Renderer {
             extension_name_pointers.push(portability_extension.as_ptr());
         }
 
-        let queue_create_infos = [
+        let mut queue_create_infos = vec!(
             vk::DeviceQueueCreateInfo::builder()
-                .queue_family_index(queue.main_queue_index)
+                .queue_family_index(queue_indices[0])
                 .queue_priorities(&[1.0])
                 .build(),
-            vk::DeviceQueueCreateInfo::builder()
-                .queue_family_index(queue.transfer_only_queue_index)
-                .queue_priorities(&[1.0])
-                .build(),
-        ];
+        );
+
+        if queue_indices[0] != queue_indices[1] {
+            queue_create_infos.push(
+                vk::DeviceQueueCreateInfo::builder()
+                    .queue_family_index(queue_indices[1])
+                    .queue_priorities(&[1.0])
+                    .build(),
+            );
+        }
 
         let device_create_info = vk::DeviceCreateInfo::builder()
             .enabled_extension_names(&extension_name_pointers)
@@ -430,6 +440,14 @@ impl Renderer {
             .begin_render_pass(&render_pass_begin_info);
 
         self.command_manager.end_render_pass();
+
+        self.command_manager.end_main_command_buffer().unwrap();
+
+        self.command_manager.submit_main_command_buffer(&[self.present_semaphore], &[self.present_semaphore], self.fence);
+            
+        self.swapchain.present(&self.queue, image_index, &[self.present_semaphore]);
+
+        self.framenumber += 1;
     }
 }
 

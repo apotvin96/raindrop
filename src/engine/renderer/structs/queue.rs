@@ -1,24 +1,40 @@
 use ash::{
-    vk::{self, PhysicalDevice},
-    Instance,
+    vk::{self, PhysicalDevice, Semaphore},
+    Device, Instance,
 };
 use log::warn;
 
-use super::Surface;
+use super::{Surface, Swapchain};
 
+#[derive(Clone)]
 pub struct Queue {
     pub main_queue_index: u32,
     pub transfer_only_queue_index: u32,
+    pub main_queue: vk::Queue,
+    pub transfer_only_queue: vk::Queue,
 }
 
 const NONE_QUEUE_INDEX: u32 = 999999;
 
 impl Queue {
     pub fn new(
+        device: &Device,
+        main_queue_index: u32,
+        transfer_only_queue_index: u32,
+    ) -> Result<Queue, String> {
+        Ok(Queue {
+            main_queue_index,
+            transfer_only_queue_index,
+            main_queue: unsafe { device.get_device_queue(main_queue_index, 0) },
+            transfer_only_queue: unsafe { device.get_device_queue(transfer_only_queue_index, 0) },
+        })
+    }
+
+    pub fn get_queue_indicies(
         instance: &Instance,
         physical_device: &PhysicalDevice,
         surface: &Surface,
-    ) -> Result<Queue, String> {
+    ) -> Result<[u32; 2], String> {
         let properties =
             unsafe { instance.get_physical_device_queue_family_properties(*physical_device) };
 
@@ -67,9 +83,6 @@ impl Queue {
             warn!("Using the same queue for graphics and transfer operations")
         }
 
-        Ok(Queue {
-            main_queue_index,
-            transfer_only_queue_index,
-        })
+        Ok([main_queue_index, transfer_only_queue_index])
     }
 }
