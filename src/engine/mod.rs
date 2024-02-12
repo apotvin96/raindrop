@@ -14,9 +14,6 @@ use renderer::Renderer;
 
 pub struct Engine {
     is_initialized: bool,
-    frame_number: u32,
-    stop_rendering: bool,
-    window_resized: bool,
     renderer: Renderer,
 }
 
@@ -29,9 +26,6 @@ impl Engine {
 
         Ok(Engine {
             is_initialized: true,
-            frame_number: 0,
-            stop_rendering: false,
-            window_resized: false,
             renderer,
         })
     }

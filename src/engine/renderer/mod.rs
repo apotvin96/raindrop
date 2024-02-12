@@ -1,6 +1,7 @@
+mod debug;
 mod structs;
 
-use std::{fs, mem::ManuallyDrop, ops::BitOrAssign};
+use std::{mem::ManuallyDrop, ops::BitOrAssign};
 
 use ash::{
     extensions::ext::DebugUtils,
@@ -8,54 +9,25 @@ use ash::{
         self, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, ClearValue,
         DebugUtilsMessengerEXT, Framebuffer, FramebufferCreateInfo, ImageLayout,
         InstanceCreateFlags, PhysicalDevice, Rect2D, RenderPass, RenderPassCreateInfo,
-        SampleCountFlags, ShaderModuleCreateInfo, SubpassDescription,
+        SampleCountFlags, SubpassDescription,
     },
     Device, Entry, Instance,
 };
-use log::{error, info, trace, warn};
+use log::{trace, warn};
 
 use raw_window_handle::HasRawDisplayHandle;
 
 use crate::config::Config;
+
+use structs::CommandManager;
+use structs::Pipeline;
+use structs::Queue;
+use structs::Shader;
 use structs::Surface;
-
-use self::structs::CommandManager;
-use self::structs::Queue;
-use self::structs::Swapchain;
-
-unsafe extern "system" fn vulkan_debug_utils_callback(
-    message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
-    message_type: vk::DebugUtilsMessageTypeFlagsEXT,
-    p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
-    _p_user_data: *mut std::ffi::c_void,
-) -> vk::Bool32 {
-    let message = std::ffi::CStr::from_ptr((*p_callback_data).p_message);
-    let ty = format!("{:?}", message_type).to_lowercase();
-
-    match message_severity {
-        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-            error!("Vk Validation Layer Error: {} {:?}", ty, message);
-        }
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-            warn!("Vk Validation Layer Warn: {} {:?}", ty, message);
-        }
-        vk::DebugUtilsMessageSeverityFlagsEXT::INFO => {
-            info!("Vk Validation Layer Info: {} {:?}", ty, message);
-        }
-        vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE => {
-            trace!("Vk Validation Layer Trace: {} {:?}", ty, message);
-        }
-        _ => {
-            error!("Vk Validation Layer Unknown: {} {:?}", ty, message)
-        }
-    }
-
-    vk::FALSE
-}
+use structs::Swapchain;
 
 pub struct Renderer {
     framenumber: u64,
-    entry: Entry,
     instance: Instance,
     debug_messenger: DebugUtilsMessengerEXT,
     debug_loader: DebugUtils,
@@ -70,6 +42,7 @@ pub struct Renderer {
     render_semaphore: vk::Semaphore,
     present_semaphore: vk::Semaphore,
     fence: vk::Fence,
+    pipeline: Pipeline,
 }
 
 impl Renderer {
@@ -150,11 +123,29 @@ impl Renderer {
                 Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
             };
 
-        Self::load_shaders(&device);
+        let vertex_shader = match Shader::from_path(&device, "shaders/triangle.vert") {
+            Ok(shader) => shader,
+            Err(e) => return Err("Failed to create vertex shader: ".to_owned() + &e.to_string()),
+        };
+
+        let fragment_shader = match Shader::from_path(&device, "shaders/triangle.frag") {
+            Ok(shader) => shader,
+            Err(e) => return Err("Failed to create fragment shader: ".to_owned() + &e.to_string()),
+        };
+
+        let pipeline = match Pipeline::new(
+            &device,
+            &[vertex_shader, fragment_shader],
+            &render_pass,
+            swapchain.extent.width,
+            swapchain.extent.height,
+        ) {
+            Ok(pipeline) => pipeline,
+            Err(e) => return Err("Failed to create pipeline: ".to_owned() + &e.to_string()),
+        };
 
         Ok(Renderer {
             framenumber: 0,
-            entry,
             instance,
             debug_loader,
             debug_messenger,
@@ -169,6 +160,7 @@ impl Renderer {
             fence,
             render_semaphore,
             present_semaphore,
+            pipeline,
         })
     }
 
@@ -218,17 +210,7 @@ impl Renderer {
             extension_name_pointers.push(*extension);
         }
 
-        let mut debug_create_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
-            .message_severity(
-                vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                    | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
-            )
-            .message_type(
-                vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-                    | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
-                    | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
-            )
-            .pfn_user_callback(Some(vulkan_debug_utils_callback));
+        let mut debug_create_info = debug::debug_create_info();
 
         let instance_create_info = vk::InstanceCreateInfo::builder()
             .push_next(&mut debug_create_info)
@@ -401,36 +383,6 @@ impl Renderer {
         }
 
         Ok(framebuffers)
-    }
-
-    fn load_shaders(device: &Device) {
-        trace!("Loading Shaders");
-
-        let shader_text =
-            fs::read_to_string("shaders/triangle.vert").expect("Failed to load vertex shader");
-
-        let compiler = shaderc::Compiler::new().unwrap();
-        let mut compiler_options = shaderc::CompileOptions::new().unwrap();
-
-        compiler_options.add_macro_definition("EP", Some("main"));
-
-        let spirv_binary_data = compiler
-            .compile_into_spirv(
-                &shader_text,
-                shaderc::ShaderKind::Vertex,
-                "text.vert",
-                "main",
-                Some(&compiler_options),
-            )
-            .unwrap();
-
-        let shader_module_create_info = ShaderModuleCreateInfo::builder()
-            .code(spirv_binary_data.as_binary())
-            .build();
-
-        unsafe {
-            device.create_shader_module(&shader_module_create_info, None);
-        }
     }
 
     pub fn render(&mut self) {
