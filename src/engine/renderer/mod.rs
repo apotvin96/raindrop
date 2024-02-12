@@ -307,12 +307,10 @@ impl Renderer {
             extension_name_pointers.push(portability_extension.as_ptr());
         }
 
-        let mut queue_create_infos = vec!(
-            vk::DeviceQueueCreateInfo::builder()
-                .queue_family_index(queue_indices[0])
-                .queue_priorities(&[1.0])
-                .build(),
-        );
+        let mut queue_create_infos = vec![vk::DeviceQueueCreateInfo::builder()
+            .queue_family_index(queue_indices[0])
+            .queue_priorities(&[1.0])
+            .build()];
 
         if queue_indices[0] != queue_indices[1] {
             queue_create_infos.push(
@@ -443,9 +441,14 @@ impl Renderer {
 
         self.command_manager.end_main_command_buffer().unwrap();
 
-        self.command_manager.submit_main_command_buffer(&[self.present_semaphore], &[self.present_semaphore], self.fence);
-            
-        self.swapchain.present(&self.queue, image_index, &[self.present_semaphore]);
+        self.command_manager.submit_main_command_buffer(
+            &[self.present_semaphore],
+            &[self.present_semaphore],
+            self.fence,
+        );
+
+        self.swapchain
+            .present(&self.queue, image_index, &[self.present_semaphore]);
 
         self.framenumber += 1;
     }
@@ -456,6 +459,10 @@ impl Drop for Renderer {
         trace!("Cleaning: Renderer");
 
         unsafe {
+            self.device
+                .wait_for_fences(&[self.fence], true, 1000000000)
+                .expect("Failed to wait for fence");
+
             self.device.destroy_semaphore(self.render_semaphore, None);
             self.device.destroy_semaphore(self.present_semaphore, None);
             self.device.destroy_fence(self.fence, None);
