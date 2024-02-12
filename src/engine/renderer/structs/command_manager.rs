@@ -6,7 +6,7 @@ use ash::{
 };
 use log::error;
 
-use super::{swapchain, Queue, Swapchain};
+use super::Queue;
 
 pub struct CommandManager {
     device: Device,

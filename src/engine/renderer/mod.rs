@@ -1,14 +1,14 @@
 mod structs;
 
-use std::{mem::ManuallyDrop, ops::BitOrAssign};
+use std::{fs, mem::ManuallyDrop, ops::BitOrAssign};
 
 use ash::{
     extensions::ext::DebugUtils,
     vk::{
         self, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, ClearValue,
         DebugUtilsMessengerEXT, Framebuffer, FramebufferCreateInfo, ImageLayout,
-        InstanceCreateFlags, PhysicalDevice, PipelineStageFlags, Rect2D, RenderPass,
-        RenderPassCreateInfo, SampleCountFlags, SubmitInfo, SubpassDescription,
+        InstanceCreateFlags, PhysicalDevice, Rect2D, RenderPass, RenderPassCreateInfo,
+        SampleCountFlags, ShaderModuleCreateInfo, SubpassDescription,
     },
     Device, Entry, Instance,
 };
@@ -149,6 +149,8 @@ impl Renderer {
                 Ok(semaphore) => semaphore,
                 Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
             };
+
+        Self::load_shaders(&device);
 
         Ok(Renderer {
             framenumber: 0,
@@ -399,6 +401,36 @@ impl Renderer {
         }
 
         Ok(framebuffers)
+    }
+
+    fn load_shaders(device: &Device) {
+        trace!("Loading Shaders");
+
+        let shader_text =
+            fs::read_to_string("shaders/triangle.vert").expect("Failed to load vertex shader");
+
+        let compiler = shaderc::Compiler::new().unwrap();
+        let mut compiler_options = shaderc::CompileOptions::new().unwrap();
+
+        compiler_options.add_macro_definition("EP", Some("main"));
+
+        let spirv_binary_data = compiler
+            .compile_into_spirv(
+                &shader_text,
+                shaderc::ShaderKind::Vertex,
+                "text.vert",
+                "main",
+                Some(&compiler_options),
+            )
+            .unwrap();
+
+        let shader_module_create_info = ShaderModuleCreateInfo::builder()
+            .code(spirv_binary_data.as_binary())
+            .build();
+
+        unsafe {
+            device.create_shader_module(&shader_module_create_info, None);
+        }
     }
 
     pub fn render(&mut self) {

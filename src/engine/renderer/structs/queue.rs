@@ -1,10 +1,10 @@
 use ash::{
-    vk::{self, PhysicalDevice, Semaphore},
+    vk::{self, PhysicalDevice},
     Device, Instance,
 };
 use log::warn;
 
-use super::{Surface, Swapchain};
+use super::Surface;
 
 #[derive(Clone)]
 pub struct Queue {
