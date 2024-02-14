@@ -102,28 +102,6 @@ impl Renderer {
             Err(e) => return Err("Failed to init renderer: framebuffers: ".to_owned() + &e),
         };
 
-        let fence_create_info =
-            vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
-
-        let fence = match unsafe { device.create_fence(&fence_create_info, None) } {
-            Ok(fence) => fence,
-            Err(e) => return Err("Failed to create fence: ".to_owned() + &e.to_string()),
-        };
-
-        let semaphore_create_info = vk::SemaphoreCreateInfo::builder().build();
-
-        let render_semaphore =
-            match unsafe { device.create_semaphore(&semaphore_create_info, None) } {
-                Ok(semaphore) => semaphore,
-                Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
-            };
-
-        let present_semaphore =
-            match unsafe { device.create_semaphore(&semaphore_create_info, None) } {
-                Ok(semaphore) => semaphore,
-                Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
-            };
-
         let vertex_shader = match Shader::from_path(&device, "shaders/triangle.vert") {
             Ok(shader) => shader,
             Err(e) => return Err("Failed to create vertex shader: ".to_owned() + &e.to_string()),
@@ -163,6 +141,28 @@ impl Renderer {
             Ok(pipeline) => pipeline,
             Err(e) => return Err("Failed to create pipeline: ".to_owned() + &e.to_string()),
         };
+
+        let fence_create_info =
+            vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
+
+        let fence = match unsafe { device.create_fence(&fence_create_info, None) } {
+            Ok(fence) => fence,
+            Err(e) => return Err("Failed to create fence: ".to_owned() + &e.to_string()),
+        };
+
+        let semaphore_create_info = vk::SemaphoreCreateInfo::builder().build();
+
+        let render_semaphore =
+            match unsafe { device.create_semaphore(&semaphore_create_info, None) } {
+                Ok(semaphore) => semaphore,
+                Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
+            };
+
+        let present_semaphore =
+            match unsafe { device.create_semaphore(&semaphore_create_info, None) } {
+                Ok(semaphore) => semaphore,
+                Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
+            };
 
         Ok(Renderer {
             framenumber: 0,
@@ -478,12 +478,13 @@ impl Drop for Renderer {
                 .wait_for_fences(&[self.fence], true, 1000000000)
                 .expect("Failed to wait for fence");
 
-            ManuallyDrop::drop(&mut self.color_pipeline);
-            ManuallyDrop::drop(&mut self.basic_pipeline);
-
             self.device.destroy_semaphore(self.render_semaphore, None);
             self.device.destroy_semaphore(self.present_semaphore, None);
             self.device.destroy_fence(self.fence, None);
+
+            ManuallyDrop::drop(&mut self.color_pipeline);
+            ManuallyDrop::drop(&mut self.basic_pipeline);
+
             for framebuffer in &self.framebuffers {
                 self.device.destroy_framebuffer(*framebuffer, None);
             }
