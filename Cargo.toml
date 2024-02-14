@@ -9,6 +9,7 @@ edition = "2021"
 ash = { version = "0.37.3", features = ["linked"] }
 ash-window = "0.12.0"
 game-loop = { version = "1.0.1", features = ["winit"] }
+lazy_static = "1.4.0"
 log = "0.4.20"
 raw-window-handle = "0.5.2"
 serde = "1.0.196"

@@ -17,13 +17,13 @@ pub struct Pipeline {
     device: Device,
     // TODO: Eventually we should have a pipeline cache that reuses pipeline layouts if they already exist
     pipeline_layout: ash::vk::PipelineLayout,
-    pipeline: ash::vk::Pipeline,
+    pub pipeline: ash::vk::Pipeline,
 }
 
 impl Pipeline {
     pub fn new(
         device: &Device,
-        shaders: &[Shader],
+        shaders: &[&Shader],
         render_pass: &RenderPass,
         width: u32,
         height: u32,
@@ -42,13 +42,13 @@ impl Pipeline {
                 }
             };
 
-        let color_blend_attachment_state = PipelineColorBlendAttachmentState::builder()
+        let color_blend_attachment_states = [PipelineColorBlendAttachmentState::builder()
             .blend_enable(false)
             .color_write_mask(ColorComponentFlags::RGBA)
-            .build();
+            .build()];
 
         let color_blend_state = PipelineColorBlendStateCreateInfo::builder()
-            .attachments(&[color_blend_attachment_state])
+            .attachments(&color_blend_attachment_states)
             .logic_op_enable(false)
             .logic_op(LogicOp::COPY)
             .build();
@@ -84,24 +84,29 @@ impl Pipeline {
             .vertex_binding_descriptions(&[])
             .build();
 
-        let viewport = Viewport {
+        let viewports = [Viewport {
             x: 0.0,
             y: 0.0,
             width: width as f32,
             height: height as f32,
             min_depth: 0.0,
             max_depth: 1.0,
-        };
+        }];
 
-        let scissor = Rect2D {
+        let scissors = [Rect2D {
             offset: Offset2D { x: 0, y: 0 },
             extent: Extent2D { width, height },
-        };
+        }];
 
         let viewport_state_create_info = PipelineViewportStateCreateInfo::builder()
-            .viewports(&[viewport])
-            .scissors(&[scissor])
+            .viewports(&viewports)
+            .scissors(&scissors)
             .build();
+
+        let shader_stage_create_infos = shaders
+            .iter()
+            .map(|shader| shader.stage_create_info())
+            .collect::<Vec<PipelineShaderStageCreateInfo>>();
 
         let pipeline_create_info = GraphicsPipelineCreateInfo::builder()
             .color_blend_state(&color_blend_state)
@@ -110,13 +115,7 @@ impl Pipeline {
             .multisample_state(&multisample_state_create_info)
             .rasterization_state(&rasterization_state_create_info)
             .render_pass(*render_pass)
-            .stages(
-                shaders
-                    .iter()
-                    .map(|shader| shader.stage_create_info)
-                    .collect::<Vec<PipelineShaderStageCreateInfo>>()
-                    .as_slice(),
-            )
+            .stages(&shader_stage_create_infos)
             .subpass(0)
             .vertex_input_state(&vertex_input_state_create_info)
             .viewport_state(&viewport_state_create_info)

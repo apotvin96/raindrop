@@ -1,12 +1,13 @@
 use ash::{
     vk::{
-        self, CommandBufferResetFlags, CommandBufferUsageFlags, Fence, PipelineStageFlags, RenderPassBeginInfo, Semaphore, SubmitInfo, SubpassContents
+        self, CommandBufferResetFlags, CommandBufferUsageFlags, Fence, PipelineBindPoint,
+        PipelineStageFlags, RenderPassBeginInfo, Semaphore, SubmitInfo, SubpassContents,
     },
     Device,
 };
 use log::error;
 
-use super::Queue;
+use super::{Pipeline, Queue};
 
 pub struct CommandManager {
     device: Device,
@@ -114,21 +115,59 @@ impl CommandManager {
         unsafe { self.device.cmd_end_render_pass(self.main_command_buffer) };
     }
 
-    pub fn submit_main_command_buffer(&self, wait_semaphores: &[Semaphore], signal_semaphores: &[Semaphore], fence: Fence) {
+    pub fn submit_main_command_buffer(
+        &self,
+        wait_semaphores: &[Semaphore],
+        signal_semaphores: &[Semaphore],
+        fence: Fence,
+    ) {
+        let submit_command_buffers = [self.main_command_buffer];
+
         let pipeline_stage_flags = PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT;
         let submit_info = SubmitInfo::builder()
             .wait_dst_stage_mask(&[pipeline_stage_flags])
             .wait_semaphores(&wait_semaphores)
             .signal_semaphores(&signal_semaphores)
-            .command_buffers(&[self.main_command_buffer])
+            .command_buffers(&submit_command_buffers)
             .build();
 
-        match unsafe { self.device.queue_submit(self.queue.main_queue, &[submit_info], fence) } {
+        match unsafe {
+            self.device
+                .queue_submit(self.queue.main_queue, &[submit_info], fence)
+        } {
             Ok(_) => {}
             Err(_) => {
                 error!("Failed to submit command buffer");
             }
         }
+    }
+
+    pub fn bind_pipeline(&self, pipeline: &Pipeline) {
+        unsafe {
+            self.device.cmd_bind_pipeline(
+                self.main_command_buffer,
+                PipelineBindPoint::GRAPHICS,
+                pipeline.pipeline,
+            )
+        };
+    }
+
+    pub fn draw(
+        &self,
+        vertex_count: u32,
+        instance_count: u32,
+        first_vertex: u32,
+        first_instance: u32,
+    ) {
+        unsafe {
+            self.device.cmd_draw(
+                self.main_command_buffer,
+                vertex_count,
+                instance_count,
+                first_vertex,
+                first_instance,
+            )
+        };
     }
 }
 

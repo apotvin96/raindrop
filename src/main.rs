@@ -1,6 +1,9 @@
 extern crate log;
 extern crate simplelog;
 
+#[macro_use]
+extern crate lazy_static;
+
 use std::fs::File;
 
 use simplelog::{

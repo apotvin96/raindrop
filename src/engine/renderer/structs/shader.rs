@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{ffi::CString, fs, path::Path};
 
 use ash::{
     vk::{PipelineShaderStageCreateInfo, ShaderModule, ShaderModuleCreateInfo, ShaderStageFlags},
@@ -9,7 +9,10 @@ pub struct Shader {
     device: Device,
     stage: ShaderStageFlags,
     module: ShaderModule,
-    pub stage_create_info: PipelineShaderStageCreateInfo,
+}
+
+lazy_static! {
+    static ref DEFAULT_ENTRY_POINT_NAME: CString = std::ffi::CString::new("main").unwrap();
 }
 
 impl Shader {
@@ -37,8 +40,14 @@ impl Shader {
         let spirv_binary_data = compiler
             .compile_into_spirv(
                 &shader_text,
-                shaderc::ShaderKind::Vertex,
-                "text.vert",
+                match stage {
+                    ShaderStageFlags::VERTEX => shaderc::ShaderKind::Vertex,
+                    ShaderStageFlags::FRAGMENT => shaderc::ShaderKind::Fragment,
+                    _ => {
+                        return Err(format!("Unknown shader type: {}", file_ending));
+                    }
+                },
+                path,
                 "main",
                 Some(&compiler_options),
             )
@@ -56,18 +65,19 @@ impl Shader {
             }
         };
 
-        let stage_create_info = PipelineShaderStageCreateInfo::builder()
-            .stage(stage)
-            .module(module)
-            .name(&std::ffi::CString::new("main").unwrap())
-            .build();
-
         Ok(Shader {
             device: device.clone(),
             stage,
             module,
-            stage_create_info,
         })
+    }
+
+    pub fn stage_create_info(&self) -> PipelineShaderStageCreateInfo {
+        PipelineShaderStageCreateInfo::builder()
+            .stage(self.stage)
+            .module(self.module)
+            .name(&DEFAULT_ENTRY_POINT_NAME)
+            .build()
     }
 }
 

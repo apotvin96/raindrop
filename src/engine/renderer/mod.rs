@@ -42,11 +42,12 @@ pub struct Renderer {
     render_semaphore: vk::Semaphore,
     present_semaphore: vk::Semaphore,
     fence: vk::Fence,
-    pipeline: Pipeline,
+    color_pipeline: ManuallyDrop<Pipeline>,
+    basic_pipeline: ManuallyDrop<Pipeline>,
 }
 
 impl Renderer {
-    pub fn new(_config: Config, window: &winit::window::Window) -> Result<Renderer, String> {
+    pub fn new(config: Config, window: &winit::window::Window) -> Result<Renderer, String> {
         trace!("Initializing: Renderer");
 
         let entry = Entry::linked();
@@ -133,9 +134,28 @@ impl Renderer {
             Err(e) => return Err("Failed to create fragment shader: ".to_owned() + &e.to_string()),
         };
 
-        let pipeline = match Pipeline::new(
+        let color_fragment_shader =
+            match Shader::from_path(&device, "shaders/colored_triangle.frag") {
+                Ok(shader) => shader,
+                Err(e) => {
+                    return Err("Failed to create fragment shader: ".to_owned() + &e.to_string())
+                }
+            };
+
+        let color_pipeline = match Pipeline::new(
             &device,
-            &[vertex_shader, fragment_shader],
+            &[&vertex_shader, &color_fragment_shader],
+            &render_pass,
+            swapchain.extent.width,
+            swapchain.extent.height,
+        ) {
+            Ok(pipeline) => pipeline,
+            Err(e) => return Err("Failed to create pipeline: ".to_owned() + &e.to_string()),
+        };
+
+        let basic_pipeline = match Pipeline::new(
+            &device,
+            &[&vertex_shader, &fragment_shader],
             &render_pass,
             swapchain.extent.width,
             swapchain.extent.height,
@@ -160,7 +180,8 @@ impl Renderer {
             fence,
             render_semaphore,
             present_semaphore,
-            pipeline,
+            color_pipeline: ManuallyDrop::new(color_pipeline),
+            basic_pipeline: ManuallyDrop::new(basic_pipeline),
         })
     }
 
@@ -333,19 +354,19 @@ impl Renderer {
             .final_layout(ImageLayout::PRESENT_SRC_KHR)
             .build();
 
-        let attachment_reference = vk::AttachmentReference::builder()
+        let attachment_references = [vk::AttachmentReference::builder()
             .attachment(0)
             .layout(ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            .build();
+            .build()];
 
-        let subpass_descript = SubpassDescription::builder()
+        let subpass_descriptions = [SubpassDescription::builder()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-            .color_attachments(&[attachment_reference])
-            .build();
+            .color_attachments(&attachment_references)
+            .build()];
 
         let render_pass_create_info = RenderPassCreateInfo::builder()
             .attachments(&[attachment_description])
-            .subpasses(&[subpass_descript])
+            .subpasses(&subpass_descriptions)
             .build();
 
         match unsafe { device.create_render_pass(&render_pass_create_info, None) } {
@@ -364,12 +385,14 @@ impl Renderer {
         let mut framebuffers: Vec<Framebuffer> = Vec::with_capacity(swapchain.image_views.len());
 
         for image_view in &swapchain.image_views {
+            let attachments = [*image_view];
+
             let framebuffer_create_info = FramebufferCreateInfo::builder()
                 .render_pass(*render_pass)
                 .width(swapchain.extent.width)
                 .height(swapchain.extent.height)
                 .layers(1)
-                .attachments(&[*image_view])
+                .attachments(&attachments)
                 .build();
 
             let framebuffer = match unsafe {
@@ -385,7 +408,7 @@ impl Renderer {
         Ok(framebuffers)
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, show_color: bool) {
         trace!("Rendering");
 
         unsafe { self.device.wait_for_fences(&[self.fence], true, 1000000000) }
@@ -421,6 +444,14 @@ impl Renderer {
         self.command_manager
             .begin_render_pass(&render_pass_begin_info);
 
+        if show_color {
+            self.command_manager.bind_pipeline(&self.color_pipeline);
+        } else {
+            self.command_manager.bind_pipeline(&self.basic_pipeline);
+        }
+
+        self.command_manager.draw(3, 1, 0, 0);
+
         self.command_manager.end_render_pass();
 
         self.command_manager.end_main_command_buffer().unwrap();
@@ -446,6 +477,9 @@ impl Drop for Renderer {
             self.device
                 .wait_for_fences(&[self.fence], true, 1000000000)
                 .expect("Failed to wait for fence");
+
+            ManuallyDrop::drop(&mut self.color_pipeline);
+            ManuallyDrop::drop(&mut self.basic_pipeline);
 
             self.device.destroy_semaphore(self.render_semaphore, None);
             self.device.destroy_semaphore(self.present_semaphore, None);

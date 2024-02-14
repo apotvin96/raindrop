@@ -15,6 +15,7 @@ use renderer::Renderer;
 pub struct Engine {
     is_initialized: bool,
     renderer: Renderer,
+    show_color: bool,
 }
 
 impl Engine {
@@ -27,6 +28,7 @@ impl Engine {
         Ok(Engine {
             is_initialized: true,
             renderer,
+            show_color: true,
         })
     }
 
@@ -37,7 +39,7 @@ impl Engine {
     pub fn render(&mut self, _window: &Window) {
         trace!("Rendering");
 
-        self.renderer.render();
+        self.renderer.render(self.show_color);
     }
 
     pub fn handle_event(&mut self, event: &winit::event::Event<()>) -> bool {
@@ -59,6 +61,9 @@ impl Engine {
                 } => match (virtual_code, state) {
                     (VirtualKeyCode::Escape, _) => {
                         return false;
+                    }
+                    (VirtualKeyCode::Space, winit::event::ElementState::Pressed) => {
+                        self.show_color = !self.show_color;
                     }
                     _ => {}
                 },
