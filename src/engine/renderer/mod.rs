@@ -1,5 +1,6 @@
 mod debug;
-mod structs;
+mod mesh;
+mod primitives;
 
 use std::{mem::ManuallyDrop, ops::BitOrAssign};
 
@@ -17,14 +18,19 @@ use log::{trace, warn};
 
 use raw_window_handle::HasRawDisplayHandle;
 
+use gpu_allocator::vulkan::*;
+
 use crate::config::Config;
 
-use structs::CommandManager;
-use structs::Pipeline;
-use structs::Queue;
-use structs::Shader;
-use structs::Surface;
-use structs::Swapchain;
+use primitives::CommandManager;
+use primitives::Pipeline;
+use primitives::Queue;
+use primitives::Shader;
+use primitives::Surface;
+use primitives::Swapchain;
+
+use mesh::Mesh;
+use mesh::Vertex;
 
 pub struct Renderer {
     framenumber: u64,
@@ -34,6 +40,7 @@ pub struct Renderer {
     physical_device: PhysicalDevice,
     surface: ManuallyDrop<Surface>,
     device: Device,
+    allocator: Allocator,
     queue: Queue,
     swapchain: ManuallyDrop<Swapchain>,
     command_manager: ManuallyDrop<CommandManager>,
@@ -44,6 +51,7 @@ pub struct Renderer {
     fence: vk::Fence,
     color_pipeline: ManuallyDrop<Pipeline>,
     basic_pipeline: ManuallyDrop<Pipeline>,
+    mesh: Mesh,
 }
 
 impl Renderer {
@@ -75,6 +83,11 @@ impl Renderer {
         let device = match Self::init_device(&instance, &physical_device, &queue_indices) {
             Ok(device) => device,
             Err(e) => return Err("Failed to init renderer: device: ".to_owned() + &e),
+        };
+
+        let allocator = match Self::init_allocator(&instance, &physical_device, &device) {
+            Ok(allocator) => allocator,
+            Err(e) => return Err("Failed to init renderer: allocator: ".to_owned() + &e),
         };
 
         let queue = match Queue::new(&device, queue_indices[0], queue_indices[1]) {
@@ -164,6 +177,8 @@ impl Renderer {
                 Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
             };
 
+        let mesh = Self::init_mesh();
+
         Ok(Renderer {
             framenumber: 0,
             instance,
@@ -172,6 +187,7 @@ impl Renderer {
             physical_device,
             surface: ManuallyDrop::new(surface),
             device,
+            allocator,
             queue,
             swapchain: ManuallyDrop::new(swapchain),
             command_manager: ManuallyDrop::new(command_manager),
@@ -182,6 +198,7 @@ impl Renderer {
             present_semaphore,
             color_pipeline: ManuallyDrop::new(color_pipeline),
             basic_pipeline: ManuallyDrop::new(basic_pipeline),
+            mesh,
         })
     }
 
@@ -340,6 +357,26 @@ impl Renderer {
         Ok(device)
     }
 
+    fn init_allocator(
+        instance: &Instance,
+        physical_device: &PhysicalDevice,
+        device: &Device,
+    ) -> Result<gpu_allocator::vulkan::Allocator, String> {
+        trace!("Initializing: Vk Allocator");
+
+        match Allocator::new(&AllocatorCreateDesc {
+            instance: instance.clone(),
+            device: device.clone(),
+            physical_device: physical_device.clone(),
+            debug_settings: Default::default(),
+            buffer_device_address: true,
+            allocation_sizes: Default::default(),
+        }) {
+            Ok(allocator) => Ok(allocator),
+            Err(e) => return Err("Failed to create allocator:".to_owned() + &e.to_string()),
+        }
+    }
+
     fn init_render_pass(device: &Device, swapchain: &Swapchain) -> Result<RenderPass, String> {
         trace!("Initializing: Vk RenderPass");
 
@@ -406,6 +443,30 @@ impl Renderer {
         }
 
         Ok(framebuffers)
+    }
+
+    fn init_mesh() -> Mesh {
+        trace!("Initializing: Mesh");
+
+        let vertices = vec![
+            Vertex {
+                position: glm::vec3(1.0, 1.0, 0.0),
+                normal: glm::vec3(0.0, 0.0, 0.0),
+                color: glm::vec3(0.0, 1.0, 0.0),
+            },
+            Vertex {
+                position: glm::vec3(-1.0, 1.0, 0.0),
+                normal: glm::vec3(0.0, 0.0, 0.0),
+                color: glm::vec3(0.0, 1.0, 0.0),
+            },
+            Vertex {
+                position: glm::vec3(0.0, -1.0, 0.0),
+                normal: glm::vec3(0.0, 0.0, 0.0),
+                color: glm::vec3(0.0, 1.0, 0.0),
+            },
+        ];
+
+        Mesh { vertices }
     }
 
     pub fn render(&mut self, show_color: bool) {

@@ -1,5 +1,6 @@
 extern crate log;
 extern crate simplelog;
+extern crate nalgebra_glm as glm;
 
 #[macro_use]
 extern crate lazy_static;
