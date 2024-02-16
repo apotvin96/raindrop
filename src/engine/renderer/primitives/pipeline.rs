@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use ash::{
     vk::{
         ColorComponentFlags, CullModeFlags, Extent2D, FrontFace, GraphicsPipelineCreateInfo,
@@ -11,12 +13,14 @@ use ash::{
     Device,
 };
 
+use crate::engine::renderer::mesh::{MeshPushConstants, VertexInputDescription};
+
 use super::Shader;
 
 pub struct Pipeline {
     device: Device,
     // TODO: Eventually we should have a pipeline cache that reuses pipeline layouts if they already exist
-    pipeline_layout: ash::vk::PipelineLayout,
+    pub pipeline_layout: ash::vk::PipelineLayout,
     pub pipeline: ash::vk::Pipeline,
 }
 
@@ -27,10 +31,17 @@ impl Pipeline {
         render_pass: &RenderPass,
         width: u32,
         height: u32,
+        vertex_input_description: &VertexInputDescription,
     ) -> Result<Pipeline, String> {
+        let push_constant_ranges = [ash::vk::PushConstantRange::builder()
+            .stage_flags(ash::vk::ShaderStageFlags::VERTEX)
+            .offset(0)
+            .size(size_of::<MeshPushConstants>() as u32)
+            .build()];
+
         let pipeline_layout_create_info = ash::vk::PipelineLayoutCreateInfo::builder()
             .flags(PipelineLayoutCreateFlags::empty())
-            .push_constant_ranges(&[])
+            .push_constant_ranges(&push_constant_ranges)
             .set_layouts(&[])
             .build();
 
@@ -80,8 +91,8 @@ impl Pipeline {
             .build();
 
         let vertex_input_state_create_info = PipelineVertexInputStateCreateInfo::builder()
-            .vertex_attribute_descriptions(&[])
-            .vertex_binding_descriptions(&[])
+            .vertex_attribute_descriptions(&vertex_input_description.attribute_descriptions)
+            .vertex_binding_descriptions(&vertex_input_description.binding_descriptions)
             .build();
 
         let viewports = [Viewport {

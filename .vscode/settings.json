@@ -8,5 +8,8 @@
         "editor.formatOnSaveMode": "modificationsIfAvailable",
         "editor.inlayHints.enabled": "on"
     },
-    "rust-analyzer.linkedProjects": ["./Cargo.toml"]
+    "rust-analyzer.linkedProjects": ["./Cargo.toml"],
+    "[glsl]": {
+        "editor.defaultFormatter": "raczzalan.webgl-glsl-editor"
+    }
 }

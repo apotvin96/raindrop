@@ -1,11 +1,15 @@
 use ash::{
     vk::{
         self, CommandBufferResetFlags, CommandBufferUsageFlags, Fence, PipelineBindPoint,
-        PipelineStageFlags, RenderPassBeginInfo, Semaphore, SubmitInfo, SubpassContents,
+        PipelineLayout, PipelineStageFlags, RenderPassBeginInfo, Semaphore, ShaderStageFlags,
+        SubmitInfo, SubpassContents,
     },
     Device,
 };
 use log::error;
+use serde::Serialize;
+
+use crate::engine::renderer::mesh::MeshPushConstants;
 
 use super::{Pipeline, Queue};
 
@@ -150,6 +154,35 @@ impl CommandManager {
                 pipeline.pipeline,
             )
         };
+    }
+
+    pub fn bind_vertex_buffers(&self, first_binding: u32, buffers: &[vk::Buffer], offsets: &[u64]) {
+        unsafe {
+            self.device.cmd_bind_vertex_buffers(
+                self.main_command_buffer,
+                first_binding,
+                buffers,
+                offsets,
+            )
+        };
+    }
+
+    pub fn push_constants<T: Serialize>(
+        &self,
+        layout: PipelineLayout,
+        constants: T,
+    ) {
+        let bytes = bincode::serialize(&constants).unwrap();
+
+        unsafe {
+            self.device.cmd_push_constants(
+                self.main_command_buffer,
+                layout,
+                ShaderStageFlags::VERTEX,
+                0,
+                &bytes,
+            )
+        }
     }
 
     pub fn draw(

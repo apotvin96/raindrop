@@ -2,6 +2,7 @@ use ash::vk::Buffer;
 use gpu_allocator::vulkan::Allocation;
 
 pub struct AllocatedBuffer {
-    buffer: Buffer,
-    allocation: Allocation
+    pub buffer: Buffer,
+    pub allocation: Allocation,
+    pub start_offset: usize,
 }

@@ -2,14 +2,14 @@ mod debug;
 mod mesh;
 mod primitives;
 
-use std::{mem::ManuallyDrop, ops::BitOrAssign};
+use std::{borrow::BorrowMut, mem::ManuallyDrop, ops::BitOrAssign};
 
 use ash::{
     extensions::ext::DebugUtils,
     vk::{
-        self, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, ClearValue,
-        DebugUtilsMessengerEXT, Framebuffer, FramebufferCreateInfo, ImageLayout,
-        InstanceCreateFlags, PhysicalDevice, Rect2D, RenderPass, RenderPassCreateInfo,
+        self, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, BufferCreateInfo,
+        ClearValue, DebugUtilsMessengerEXT, DeviceSize, Framebuffer, FramebufferCreateInfo,
+        ImageLayout, InstanceCreateFlags, PhysicalDevice, Rect2D, RenderPass, RenderPassCreateInfo,
         SampleCountFlags, SubpassDescription,
     },
     Device, Entry, Instance,
@@ -20,7 +20,7 @@ use raw_window_handle::HasRawDisplayHandle;
 
 use gpu_allocator::vulkan::*;
 
-use crate::config::Config;
+use crate::{config::Config, engine::renderer::mesh::MeshPushConstants};
 
 use primitives::CommandManager;
 use primitives::Pipeline;
@@ -40,7 +40,7 @@ pub struct Renderer {
     physical_device: PhysicalDevice,
     surface: ManuallyDrop<Surface>,
     device: Device,
-    allocator: Allocator,
+    allocator: ManuallyDrop<Allocator>,
     queue: Queue,
     swapchain: ManuallyDrop<Swapchain>,
     command_manager: ManuallyDrop<CommandManager>,
@@ -49,8 +49,7 @@ pub struct Renderer {
     render_semaphore: vk::Semaphore,
     present_semaphore: vk::Semaphore,
     fence: vk::Fence,
-    color_pipeline: ManuallyDrop<Pipeline>,
-    basic_pipeline: ManuallyDrop<Pipeline>,
+    mesh_pipeline: ManuallyDrop<Pipeline>,
     mesh: Mesh,
 }
 
@@ -85,7 +84,7 @@ impl Renderer {
             Err(e) => return Err("Failed to init renderer: device: ".to_owned() + &e),
         };
 
-        let allocator = match Self::init_allocator(&instance, &physical_device, &device) {
+        let mut allocator = match Self::init_allocator(&instance, &physical_device, &device) {
             Ok(allocator) => allocator,
             Err(e) => return Err("Failed to init renderer: allocator: ".to_owned() + &e),
         };
@@ -115,41 +114,26 @@ impl Renderer {
             Err(e) => return Err("Failed to init renderer: framebuffers: ".to_owned() + &e),
         };
 
-        let vertex_shader = match Shader::from_path(&device, "shaders/triangle.vert") {
+        let vertex_shader = match Shader::from_path(&device, "assets/shaders/tri_mesh.vert") {
             Ok(shader) => shader,
             Err(e) => return Err("Failed to create vertex shader: ".to_owned() + &e.to_string()),
         };
 
-        let fragment_shader = match Shader::from_path(&device, "shaders/triangle.frag") {
-            Ok(shader) => shader,
-            Err(e) => return Err("Failed to create fragment shader: ".to_owned() + &e.to_string()),
-        };
-
         let color_fragment_shader =
-            match Shader::from_path(&device, "shaders/colored_triangle.frag") {
+            match Shader::from_path(&device, "assets/shaders/colored_triangle.frag") {
                 Ok(shader) => shader,
                 Err(e) => {
                     return Err("Failed to create fragment shader: ".to_owned() + &e.to_string())
                 }
             };
 
-        let color_pipeline = match Pipeline::new(
+        let mesh_pipeline = match Pipeline::new(
             &device,
             &[&vertex_shader, &color_fragment_shader],
             &render_pass,
             swapchain.extent.width,
             swapchain.extent.height,
-        ) {
-            Ok(pipeline) => pipeline,
-            Err(e) => return Err("Failed to create pipeline: ".to_owned() + &e.to_string()),
-        };
-
-        let basic_pipeline = match Pipeline::new(
-            &device,
-            &[&vertex_shader, &fragment_shader],
-            &render_pass,
-            swapchain.extent.width,
-            swapchain.extent.height,
+            &Vertex::get_vertex_input_description(),
         ) {
             Ok(pipeline) => pipeline,
             Err(e) => return Err("Failed to create pipeline: ".to_owned() + &e.to_string()),
@@ -177,7 +161,7 @@ impl Renderer {
                 Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
             };
 
-        let mesh = Self::init_mesh();
+        let mesh = Self::init_mesh(&device, &mut allocator);
 
         Ok(Renderer {
             framenumber: 0,
@@ -187,7 +171,7 @@ impl Renderer {
             physical_device,
             surface: ManuallyDrop::new(surface),
             device,
-            allocator,
+            allocator: ManuallyDrop::new(allocator),
             queue,
             swapchain: ManuallyDrop::new(swapchain),
             command_manager: ManuallyDrop::new(command_manager),
@@ -196,8 +180,7 @@ impl Renderer {
             fence,
             render_semaphore,
             present_semaphore,
-            color_pipeline: ManuallyDrop::new(color_pipeline),
-            basic_pipeline: ManuallyDrop::new(basic_pipeline),
+            mesh_pipeline: ManuallyDrop::new(mesh_pipeline),
             mesh,
         })
     }
@@ -369,7 +352,7 @@ impl Renderer {
             device: device.clone(),
             physical_device: physical_device.clone(),
             debug_settings: Default::default(),
-            buffer_device_address: true,
+            buffer_device_address: false, // TODO: Investigate whether I want to enable this extension on the device later
             allocation_sizes: Default::default(),
         }) {
             Ok(allocator) => Ok(allocator),
@@ -445,14 +428,14 @@ impl Renderer {
         Ok(framebuffers)
     }
 
-    fn init_mesh() -> Mesh {
+    fn init_mesh(device: &Device, allocator: &mut Allocator) -> Mesh {
         trace!("Initializing: Mesh");
 
         let vertices = vec![
             Vertex {
                 position: glm::vec3(1.0, 1.0, 0.0),
                 normal: glm::vec3(0.0, 0.0, 0.0),
-                color: glm::vec3(0.0, 1.0, 0.0),
+                color: glm::vec3(1.0, 0.0, 0.0),
             },
             Vertex {
                 position: glm::vec3(-1.0, 1.0, 0.0),
@@ -462,14 +445,21 @@ impl Renderer {
             Vertex {
                 position: glm::vec3(0.0, -1.0, 0.0),
                 normal: glm::vec3(0.0, 0.0, 0.0),
-                color: glm::vec3(0.0, 1.0, 0.0),
+                color: glm::vec3(0.0, 0.0, 1.0),
             },
         ];
 
-        Mesh { vertices }
+        let mut mesh = Mesh {
+            vertices,
+            vertex_buffer: None,
+        };
+
+        mesh.upload(device, allocator).unwrap();
+
+        mesh
     }
 
-    pub fn render(&mut self, show_color: bool) {
+    pub fn render(&mut self) {
         trace!("Rendering");
 
         unsafe { self.device.wait_for_fences(&[self.fence], true, 1000000000) }
@@ -484,7 +474,8 @@ impl Renderer {
 
         self.command_manager.begin_main_command_buffer();
 
-        let flash = (self.framenumber as f32 / 120.0).sin().abs();
+        //let flash = (self.framenumber as f32 / 120.0).sin().abs();
+        let flash = 0.0;
 
         let clear_value = ClearValue {
             color: vk::ClearColorValue {
@@ -505,13 +496,45 @@ impl Renderer {
         self.command_manager
             .begin_render_pass(&render_pass_begin_info);
 
-        if show_color {
-            self.command_manager.bind_pipeline(&self.color_pipeline);
-        } else {
-            self.command_manager.bind_pipeline(&self.basic_pipeline);
-        }
+        self.command_manager.bind_pipeline(&self.mesh_pipeline);
 
-        self.command_manager.draw(3, 1, 0, 0);
+        let offset = 0;
+        self.command_manager.bind_vertex_buffers(
+            0,
+            &[self.mesh.vertex_buffer.as_mut().unwrap().buffer],
+            &[offset],
+        );
+
+        let cam_pos = glm::vec3(0.0, 0.0, -2.0);
+        let view_mat = glm::translate(&glm::Mat4::identity(), &cam_pos);
+
+        let mut proj_mat = glm::perspective(
+            1600.0 / 900.0,
+            glm::radians(&glm::vec1(70.0))[0],
+            0.1,
+            200.0,
+        );
+
+        proj_mat[(1, 1)] *= -1.0;
+
+        let model_mat = glm::rotate(
+            &glm::Mat4::identity(),
+            self.framenumber as f32 / 100.0,
+            &glm::vec3(0.0, 1.0, 0.0),
+        );
+
+        let matrix = proj_mat * view_mat * model_mat;
+
+        let push_constants = MeshPushConstants {
+            render_matrix: matrix,
+            data: glm::vec4(0.0, 0.0, 0.0, 0.0),
+        };
+
+        self.command_manager
+            .push_constants(self.mesh_pipeline.pipeline_layout, push_constants);
+
+        self.command_manager
+            .draw(self.mesh.vertices.len() as u32, 1, 0, 0);
 
         self.command_manager.end_render_pass();
 
@@ -539,12 +562,15 @@ impl Drop for Renderer {
                 .wait_for_fences(&[self.fence], true, 1000000000)
                 .expect("Failed to wait for fence");
 
+            self.mesh.free(&self.device, &mut self.allocator);
+
+            ManuallyDrop::drop(&mut self.allocator);
+
             self.device.destroy_semaphore(self.render_semaphore, None);
             self.device.destroy_semaphore(self.present_semaphore, None);
             self.device.destroy_fence(self.fence, None);
 
-            ManuallyDrop::drop(&mut self.color_pipeline);
-            ManuallyDrop::drop(&mut self.basic_pipeline);
+            ManuallyDrop::drop(&mut self.mesh_pipeline);
 
             for framebuffer in &self.framebuffers {
                 self.device.destroy_framebuffer(*framebuffer, None);
