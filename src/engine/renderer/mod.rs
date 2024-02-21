@@ -2,14 +2,14 @@ mod debug;
 mod mesh;
 mod primitives;
 
-use std::{borrow::BorrowMut, mem::ManuallyDrop, ops::BitOrAssign};
+use std::{mem::ManuallyDrop, ops::BitOrAssign};
 
 use ash::{
     extensions::ext::DebugUtils,
     vk::{
-        self, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, BufferCreateInfo,
-        ClearValue, DebugUtilsMessengerEXT, DeviceSize, Framebuffer, FramebufferCreateInfo,
-        ImageLayout, InstanceCreateFlags, PhysicalDevice, Rect2D, RenderPass, RenderPassCreateInfo,
+        self, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, ClearValue,
+        DebugUtilsMessengerEXT, Framebuffer, FramebufferCreateInfo, ImageLayout,
+        InstanceCreateFlags, PhysicalDevice, Rect2D, RenderPass, RenderPassCreateInfo,
         SampleCountFlags, SubpassDescription,
     },
     Device, Entry, Instance,
@@ -449,10 +449,7 @@ impl Renderer {
             },
         ];
 
-        let mut mesh = Mesh {
-            vertices,
-            vertex_buffer: None,
-        };
+        let mut mesh = Mesh::from_vertices(vertices);
 
         mesh.upload(device, allocator).unwrap();
 

@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use std::{mem::size_of, path::Path};
 
 use ash::{
     vk::{
@@ -82,8 +82,18 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn from_file() -> Self {
-        let gltf = Gltf::open("assets/models/monkey.gltf").unwrap();
+    pub fn from_vertices(vertices: Vec<Vertex>) -> Self {
+        Mesh {
+            vertices,
+            vertex_buffer: None,
+        }
+    }
+
+    pub fn from_path<P>(path: P) -> Self
+    where
+        P: AsRef<Path>,
+    {
+        let gltf = Gltf::open(path).unwrap();
 
         for scene in gltf.scenes() {
             println!("Scene: {:?}", scene.name());
@@ -91,6 +101,12 @@ impl Mesh {
             for node in scene.nodes() {
                 println!("    Node: {:?}", node.name());
                 println!("        Mesh: {:?}", node.mesh());
+
+                let mesh = node.mesh().unwrap();
+
+                mesh.primitives().for_each(|primitive| {
+                    println!("            Primitive: {:?}", primitive.material());
+                });
             }
         }
 
