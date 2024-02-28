@@ -163,6 +163,8 @@ impl Renderer {
 
         let mesh = Self::init_mesh(&device, &mut allocator);
 
+        //let monkey = Mesh::from_path("assets/models/monkey/monkey.glb");
+
         Ok(Renderer {
             framenumber: 0,
             instance,
@@ -431,25 +433,7 @@ impl Renderer {
     fn init_mesh(device: &Device, allocator: &mut Allocator) -> Mesh {
         trace!("Initializing: Mesh");
 
-        let vertices = vec![
-            Vertex {
-                position: glm::vec3(1.0, 1.0, 0.0),
-                normal: glm::vec3(0.0, 0.0, 0.0),
-                color: glm::vec3(1.0, 0.0, 0.0),
-            },
-            Vertex {
-                position: glm::vec3(-1.0, 1.0, 0.0),
-                normal: glm::vec3(0.0, 0.0, 0.0),
-                color: glm::vec3(0.0, 1.0, 0.0),
-            },
-            Vertex {
-                position: glm::vec3(0.0, -1.0, 0.0),
-                normal: glm::vec3(0.0, 0.0, 0.0),
-                color: glm::vec3(0.0, 0.0, 1.0),
-            },
-        ];
-
-        let mut mesh = Mesh::from_vertices(vertices);
+        let mut mesh = Mesh::from_path("assets/models/monkey/monkey.glb");
 
         mesh.upload(device, allocator).unwrap();
 

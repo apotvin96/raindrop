@@ -7,10 +7,11 @@ use ash::{
     },
     Device,
 };
-use gltf::Gltf;
+use gltf::{mesh::Mode, Semantic};
 use gpu_allocator::vulkan::{AllocationCreateDesc, AllocationScheme, Allocator};
 
 use memoffset::offset_of;
+use rand::Rng;
 use serde_derive::Serialize;
 
 use super::primitives::AllocatedBuffer;
@@ -93,20 +94,51 @@ impl Mesh {
     where
         P: AsRef<Path>,
     {
-        let gltf = Gltf::open(path).unwrap();
+        let (gltf, buffers, _) = gltf::import(path).unwrap();
 
         for scene in gltf.scenes() {
-            println!("Scene: {:?}", scene.name());
-
             for node in scene.nodes() {
-                println!("    Node: {:?}", node.name());
-                println!("        Mesh: {:?}", node.mesh());
-
                 let mesh = node.mesh().unwrap();
 
-                mesh.primitives().for_each(|primitive| {
-                    println!("            Primitive: {:?}", primitive.material());
-                });
+                for primitive in mesh.primitives() {
+                    if primitive.mode() != Mode::Triangles {
+                        continue;
+                    }
+
+                    let mut positions: Vec<glm::Vec3> = vec![];
+                    let mut normals: Vec<glm::Vec3> = vec![];
+
+                    let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+
+                    if let Some(iter) = reader.read_positions() {
+                        for position in iter {
+                            positions.push(glm::vec3(position[0], position[1], position[2]));
+                        }
+                    }
+                    if let Some(iter) = reader.read_normals() {
+                        for normal in iter {
+                            normals.push(glm::vec3(normal[0], normal[1], normal[2]));
+                        }
+                    }
+
+                    let mut vertices: Vec<Vertex> = vec![];
+
+                    let mut rng = rand::thread_rng();
+                    if let Some(indices) = reader.read_indices() {
+                        for index in indices.into_u32() {
+                            vertices.push(Vertex {
+                                position: positions[index as usize],
+                                normal: normals[index as usize],
+                                color: glm::vec3(rng.gen(), rng.gen(), rng.gen()),
+                            })
+                        }
+                    }
+
+                    return Mesh {
+                        vertices,
+                        vertex_buffer: None,
+                    };
+                }
             }
         }
 
