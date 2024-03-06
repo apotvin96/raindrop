@@ -346,18 +346,6 @@ impl Renderer {
     ) -> Result<Allocator, String> {
         trace!("Initializing: Vk Allocator");
 
-        // match Allocator::new(&AllocatorCreateDesc {
-        //     instance: instance.clone(),
-        //     device: device.clone(),
-        //     physical_device: physical_device.clone(),
-        //     debug_settings: Default::default(),
-        //     buffer_device_address: false, // TODO: Investigate whether I want to enable this extension on the device later
-        //     allocation_sizes: Default::default(),
-        // }) {
-        //     Ok(allocator) => Ok(allocator),
-        //     Err(e) => return Err("Failed to create allocator:".to_owned() + &e.to_string()),
-        // }
-
         match Allocator::new(AllocatorCreateInfo::new(instance, device, *physical_device)) {
             Ok(allocator) => Ok(allocator),
             Err(e) => return Err("Failed to create allocator:".to_owned() + &e.to_string()),
