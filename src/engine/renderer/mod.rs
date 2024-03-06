@@ -53,7 +53,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(config: Config, window: &winit::window::Window) -> Result<Renderer, String> {
+    pub fn new(_config: Config, window: &winit::window::Window) -> Result<Renderer, String> {
         trace!("Initializing: Renderer");
 
         let entry = Entry::linked();

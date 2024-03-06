@@ -1,11 +1,8 @@
-use std::{ mem::size_of, path::Path};
+use std::{mem::size_of, path::Path};
 
-use ash::{
-    vk::{
-        BufferCreateInfo, BufferUsageFlags, PipelineVertexInputStateCreateFlags,
-        VertexInputAttributeDescription, VertexInputBindingDescription, VertexInputRate,
-    },
-    Device,
+use ash::vk::{
+    BufferCreateInfo, BufferUsageFlags, PipelineVertexInputStateCreateFlags,
+    VertexInputAttributeDescription, VertexInputBindingDescription, VertexInputRate,
 };
 use gltf::mesh::Mode;
 // use gpu_allocator::vulkan::{AllocationCreateDesc, AllocationScheme, Allocator};
@@ -144,6 +141,8 @@ impl Mesh {
 
     pub fn upload(&mut self, allocator: &mut Allocator) -> Result<(), String> {
         let (buffer, mut allocation) = unsafe {
+            // TODO: Figure out the right way to set memory usage since CpuToGpu is deprecated
+            #[allow(deprecated)]
             allocator
                 .create_buffer(
                     &BufferCreateInfo::builder()
