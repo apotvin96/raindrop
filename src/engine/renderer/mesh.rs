@@ -1,4 +1,4 @@
-use std::{mem::size_of, path::Path};
+use std::{ mem::size_of, path::Path};
 
 use ash::{
     vk::{
@@ -7,12 +7,13 @@ use ash::{
     },
     Device,
 };
-use gltf::{mesh::Mode, Semantic};
-use gpu_allocator::vulkan::{AllocationCreateDesc, AllocationScheme, Allocator};
+use gltf::mesh::Mode;
+// use gpu_allocator::vulkan::{AllocationCreateDesc, AllocationScheme, Allocator};
 
 use memoffset::offset_of;
 use rand::Rng;
 use serde_derive::Serialize;
+use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
 use super::primitives::AllocatedBuffer;
 
@@ -83,13 +84,6 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn from_vertices(vertices: Vec<Vertex>) -> Self {
-        Mesh {
-            vertices,
-            vertex_buffer: None,
-        }
-    }
-
     pub fn from_path<P>(path: P) -> Self
     where
         P: AsRef<Path>,
@@ -148,63 +142,44 @@ impl Mesh {
         }
     }
 
-    pub fn upload(&mut self, device: &Device, allocator: &mut Allocator) -> Result<(), String> {
-        let buffer_create_info = BufferCreateInfo::builder()
-            .size((self.vertices.len() * size_of::<Vertex>()) as u64)
-            .usage(BufferUsageFlags::VERTEX_BUFFER)
-            .build();
-
-        let buffer = match unsafe { device.create_buffer(&buffer_create_info, None) } {
-            Ok(buffer) => buffer,
-            Err(err) => return Err("Failed to create buffer: ".to_string() + &err.to_string()),
+    pub fn upload(&mut self, allocator: &mut Allocator) -> Result<(), String> {
+        let (buffer, mut allocation) = unsafe {
+            allocator
+                .create_buffer(
+                    &BufferCreateInfo::builder()
+                        .size((self.vertices.len() * size_of::<Vertex>()) as u64)
+                        .usage(BufferUsageFlags::VERTEX_BUFFER)
+                        .build(),
+                    &AllocationCreateInfo {
+                        usage: vk_mem::MemoryUsage::CpuToGpu,
+                        ..Default::default()
+                    },
+                )
+                .unwrap()
         };
 
-        let allocation_requirements = unsafe { device.get_buffer_memory_requirements(buffer) };
-
-        let mut allocation = allocator
-            .allocate(&AllocationCreateDesc {
-                name: "Vertex Buffer",
-                requirements: allocation_requirements,
-                location: gpu_allocator::MemoryLocation::CpuToGpu,
-                linear: true,
-                allocation_scheme: AllocationScheme::GpuAllocatorManaged,
-            })
-            .unwrap();
-
+        let memory_handle = unsafe { allocator.map_memory(&mut allocation).unwrap() };
         unsafe {
-            device
-                .bind_buffer_memory(buffer, allocation.memory(), allocation.offset())
-                .unwrap();
+            std::ptr::copy_nonoverlapping(
+                self.vertices.as_ptr() as *const u8,
+                memory_handle,
+                (self.vertices.len() * size_of::<Vertex>()) as usize,
+            );
         }
+        unsafe { allocator.unmap_memory(&mut allocation) };
 
-        let copy_record = match presser::copy_from_slice_to_offset_with_align(
-            &self.vertices[..],
-            &mut allocation,
-            0,
-            allocation_requirements.alignment as usize,
-        ) {
-            Ok(copy_record) => copy_record,
-            Err(err) => return Err("Failed to copy vertex data: ".to_string() + &err.to_string()),
-        };
-
-        let allocated_buffer = AllocatedBuffer {
-            buffer,
-            allocation,
-            start_offset: copy_record.copy_start_offset,
-        };
+        let allocated_buffer = AllocatedBuffer { buffer, allocation };
 
         self.vertex_buffer = Some(allocated_buffer);
 
         Ok(())
     }
 
-    pub fn free(&mut self, device: &Device, allocator: &mut Allocator) {
-        if let Some(allocated_buffer) = self.vertex_buffer.take() {
-            allocator.free(allocated_buffer.allocation).unwrap();
-
+    pub fn free(&mut self, allocator: &mut Allocator) {
+        if let Some(mut allocated_buffer) = self.vertex_buffer.take() {
             unsafe {
-                device.destroy_buffer(allocated_buffer.buffer, None);
-            }
+                allocator.destroy_buffer(allocated_buffer.buffer, &mut allocated_buffer.allocation)
+            };
         }
     }
 }

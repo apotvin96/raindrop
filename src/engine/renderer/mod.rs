@@ -17,8 +17,7 @@ use ash::{
 use log::{trace, warn};
 
 use raw_window_handle::HasRawDisplayHandle;
-
-use gpu_allocator::vulkan::*;
+use vk_mem::{Allocator, AllocatorCreateInfo};
 
 use crate::{config::Config, engine::renderer::mesh::MeshPushConstants};
 
@@ -161,9 +160,7 @@ impl Renderer {
                 Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
             };
 
-        let mesh = Self::init_mesh(&device, &mut allocator);
-
-        //let monkey = Mesh::from_path("assets/models/monkey/monkey.glb");
+        let mesh = Self::init_mesh(&mut allocator);
 
         Ok(Renderer {
             framenumber: 0,
@@ -346,17 +343,22 @@ impl Renderer {
         instance: &Instance,
         physical_device: &PhysicalDevice,
         device: &Device,
-    ) -> Result<gpu_allocator::vulkan::Allocator, String> {
+    ) -> Result<Allocator, String> {
         trace!("Initializing: Vk Allocator");
 
-        match Allocator::new(&AllocatorCreateDesc {
-            instance: instance.clone(),
-            device: device.clone(),
-            physical_device: physical_device.clone(),
-            debug_settings: Default::default(),
-            buffer_device_address: false, // TODO: Investigate whether I want to enable this extension on the device later
-            allocation_sizes: Default::default(),
-        }) {
+        // match Allocator::new(&AllocatorCreateDesc {
+        //     instance: instance.clone(),
+        //     device: device.clone(),
+        //     physical_device: physical_device.clone(),
+        //     debug_settings: Default::default(),
+        //     buffer_device_address: false, // TODO: Investigate whether I want to enable this extension on the device later
+        //     allocation_sizes: Default::default(),
+        // }) {
+        //     Ok(allocator) => Ok(allocator),
+        //     Err(e) => return Err("Failed to create allocator:".to_owned() + &e.to_string()),
+        // }
+
+        match Allocator::new(AllocatorCreateInfo::new(instance, device, *physical_device)) {
             Ok(allocator) => Ok(allocator),
             Err(e) => return Err("Failed to create allocator:".to_owned() + &e.to_string()),
         }
@@ -430,12 +432,12 @@ impl Renderer {
         Ok(framebuffers)
     }
 
-    fn init_mesh(device: &Device, allocator: &mut Allocator) -> Mesh {
+    fn init_mesh(allocator: &mut Allocator) -> Mesh {
         trace!("Initializing: Mesh");
 
         let mut mesh = Mesh::from_path("assets/models/monkey/monkey.glb");
 
-        mesh.upload(device, allocator).unwrap();
+        mesh.upload(allocator).unwrap();
 
         mesh
     }
@@ -543,7 +545,7 @@ impl Drop for Renderer {
                 .wait_for_fences(&[self.fence], true, 1000000000)
                 .expect("Failed to wait for fence");
 
-            self.mesh.free(&self.device, &mut self.allocator);
+            self.mesh.free(&mut self.allocator);
 
             ManuallyDrop::drop(&mut self.allocator);
 
