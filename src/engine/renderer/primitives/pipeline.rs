@@ -2,13 +2,14 @@ use std::mem::size_of;
 
 use ash::{
     vk::{
-        ColorComponentFlags, CullModeFlags, Extent2D, FrontFace, GraphicsPipelineCreateInfo,
+        self, ColorComponentFlags, CullModeFlags, Extent2D, FrontFace, GraphicsPipelineCreateInfo,
         LogicOp, Offset2D, PipelineCache, PipelineColorBlendAttachmentState,
-        PipelineColorBlendStateCreateInfo, PipelineInputAssemblyStateCreateInfo,
-        PipelineLayoutCreateFlags, PipelineMultisampleStateCreateInfo,
-        PipelineRasterizationStateCreateInfo, PipelineShaderStageCreateInfo,
-        PipelineVertexInputStateCreateInfo, PipelineViewportStateCreateInfo, PolygonMode,
-        PrimitiveTopology, Rect2D, RenderPass, SampleCountFlags, Viewport,
+        PipelineColorBlendStateCreateInfo, PipelineDepthStencilStateCreateInfo,
+        PipelineInputAssemblyStateCreateInfo, PipelineLayoutCreateFlags,
+        PipelineMultisampleStateCreateInfo, PipelineRasterizationStateCreateInfo,
+        PipelineShaderStageCreateInfo, PipelineVertexInputStateCreateInfo,
+        PipelineViewportStateCreateInfo, PolygonMode, PrimitiveTopology, Rect2D, RenderPass,
+        SampleCountFlags, Viewport,
     },
     Device,
 };
@@ -119,8 +120,19 @@ impl Pipeline {
             .map(|shader| shader.stage_create_info())
             .collect::<Vec<PipelineShaderStageCreateInfo>>();
 
+        let depth_stencil_state = PipelineDepthStencilStateCreateInfo::builder()
+            .depth_test_enable(true)
+            .depth_write_enable(true)
+            .depth_compare_op(vk::CompareOp::LESS_OR_EQUAL)
+            .depth_bounds_test_enable(false)
+            .min_depth_bounds(0.0)
+            .max_depth_bounds(1.0)
+            .stencil_test_enable(false)
+            .build();
+
         let pipeline_create_info = GraphicsPipelineCreateInfo::builder()
             .color_blend_state(&color_blend_state)
+            .depth_stencil_state(&depth_stencil_state)
             .input_assembly_state(&input_assembly_state_create_info)
             .layout(pipeline_layout)
             .multisample_state(&multisample_state_create_info)

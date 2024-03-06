@@ -7,10 +7,11 @@ use std::{mem::ManuallyDrop, ops::BitOrAssign};
 use ash::{
     extensions::ext::DebugUtils,
     vk::{
-        self, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, ClearValue,
+        self, AccessFlags, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, ClearValue,
         DebugUtilsMessengerEXT, Framebuffer, FramebufferCreateInfo, ImageLayout,
-        InstanceCreateFlags, PhysicalDevice, Rect2D, RenderPass, RenderPassCreateInfo,
-        SampleCountFlags, SubpassDescription,
+        InstanceCreateFlags, PhysicalDevice, PipelineStageFlags, Rect2D, RenderPass,
+        RenderPassCreateInfo, SampleCountFlags, SubpassDependency, SubpassDescription,
+        SUBPASS_EXTERNAL,
     },
     Device, Entry, Instance,
 };
@@ -41,7 +42,7 @@ pub struct Renderer {
     device: Device,
     allocator: ManuallyDrop<Allocator>,
     queue: Queue,
-    swapchain: ManuallyDrop<Swapchain>,
+    swapchain: Swapchain,
     command_manager: ManuallyDrop<CommandManager>,
     render_pass: RenderPass,
     framebuffers: Vec<Framebuffer>,
@@ -93,7 +94,7 @@ impl Renderer {
             Err(e) => return Err("Failed to init renderer: queue: ".to_owned() + &e),
         };
 
-        let swapchain = match Swapchain::new(&instance, &device, &surface, &queue) {
+        let swapchain = match Swapchain::new(&instance, &device, &allocator, &surface, &queue) {
             Ok(swapchain) => swapchain,
             Err(e) => return Err("Failed to init renderer: swapchain: ".to_owned() + &e),
         };
@@ -172,7 +173,7 @@ impl Renderer {
             device,
             allocator: ManuallyDrop::new(allocator),
             queue,
-            swapchain: ManuallyDrop::new(swapchain),
+            swapchain,
             command_manager: ManuallyDrop::new(command_manager),
             render_pass,
             framebuffers,
@@ -371,14 +372,54 @@ impl Renderer {
             .layout(ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             .build()];
 
+        let depth_attachment_description = AttachmentDescription::builder()
+            .format(vk::Format::D32_SFLOAT)
+            .samples(SampleCountFlags::TYPE_1)
+            .load_op(AttachmentLoadOp::CLEAR)
+            .store_op(AttachmentStoreOp::STORE)
+            .stencil_load_op(AttachmentLoadOp::CLEAR)
+            .stencil_store_op(AttachmentStoreOp::DONT_CARE)
+            .initial_layout(ImageLayout::UNDEFINED)
+            .final_layout(ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+            .build();
+
+        let depth_attachment_references = vk::AttachmentReference::builder()
+            .attachment(1)
+            .layout(ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+            .build();
+
         let subpass_descriptions = [SubpassDescription::builder()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&attachment_references)
+            .depth_stencil_attachment(&depth_attachment_references)
             .build()];
 
+        let color_dependency = SubpassDependency::builder()
+            .src_subpass(SUBPASS_EXTERNAL)
+            .dst_subpass(0)
+            .src_stage_mask(PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .src_access_mask(AccessFlags::NONE)
+            .dst_stage_mask(PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(AccessFlags::COLOR_ATTACHMENT_WRITE)
+            .build();
+
+        let depth_dependency = SubpassDependency::builder()
+            .src_subpass(SUBPASS_EXTERNAL)
+            .dst_subpass(0)
+            .src_stage_mask(
+                PipelineStageFlags::EARLY_FRAGMENT_TESTS | PipelineStageFlags::LATE_FRAGMENT_TESTS,
+            )
+            .src_access_mask(AccessFlags::NONE)
+            .dst_stage_mask(
+                PipelineStageFlags::EARLY_FRAGMENT_TESTS | PipelineStageFlags::LATE_FRAGMENT_TESTS,
+            )
+            .dst_access_mask(AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
+            .build();
+
         let render_pass_create_info = RenderPassCreateInfo::builder()
-            .attachments(&[attachment_description])
+            .attachments(&[attachment_description, depth_attachment_description])
             .subpasses(&subpass_descriptions)
+            .dependencies(&[color_dependency, depth_dependency])
             .build();
 
         match unsafe { device.create_render_pass(&render_pass_create_info, None) } {
@@ -397,7 +438,7 @@ impl Renderer {
         let mut framebuffers: Vec<Framebuffer> = Vec::with_capacity(swapchain.image_views.len());
 
         for image_view in &swapchain.image_views {
-            let attachments = [*image_view];
+            let attachments = [*image_view, swapchain.depth_image_view];
 
             let framebuffer_create_info = FramebufferCreateInfo::builder()
                 .render_pass(*render_pass)
@@ -448,11 +489,19 @@ impl Renderer {
         //let flash = (self.framenumber as f32 / 120.0).sin().abs();
         let flash = 0.0;
 
-        let clear_value = ClearValue {
-            color: vk::ClearColorValue {
-                float32: [0.0, 0.0, flash, 1.0],
+        let clear_values = [
+            ClearValue {
+                color: vk::ClearColorValue {
+                    float32: [0.0, 0.0, flash, 1.0],
+                },
             },
-        };
+            ClearValue {
+                depth_stencil: vk::ClearDepthStencilValue {
+                    depth: 1.0,
+                    stencil: 0,
+                },
+            },
+        ];
 
         let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
             .render_pass(self.render_pass)
@@ -461,7 +510,7 @@ impl Renderer {
                 extent: self.swapchain.extent,
             })
             .framebuffer(self.framebuffers[image_index as usize])
-            .clear_values(&[clear_value])
+            .clear_values(&clear_values)
             .build();
 
         self.command_manager
@@ -535,8 +584,6 @@ impl Drop for Renderer {
 
             self.mesh.free(&mut self.allocator);
 
-            ManuallyDrop::drop(&mut self.allocator);
-
             self.device.destroy_semaphore(self.render_semaphore, None);
             self.device.destroy_semaphore(self.present_semaphore, None);
             self.device.destroy_fence(self.fence, None);
@@ -548,7 +595,9 @@ impl Drop for Renderer {
             }
             self.device.destroy_render_pass(self.render_pass, None);
             ManuallyDrop::drop(&mut self.command_manager);
-            ManuallyDrop::drop(&mut self.swapchain);
+            self.swapchain.free(&mut self.allocator);
+
+            ManuallyDrop::drop(&mut self.allocator);
             self.device.destroy_device(None);
             ManuallyDrop::drop(&mut self.surface);
             self.debug_loader

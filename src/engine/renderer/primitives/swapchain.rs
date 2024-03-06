@@ -1,10 +1,15 @@
 use ash::{
-    vk::{self, Format, Image, ImageView, SwapchainCreateInfoKHR, SwapchainKHR},
+    vk::{
+        self, Extent3D, Format, Image, ImageCreateInfo, ImageTiling, ImageType, ImageUsageFlags,
+        ImageView, ImageViewCreateInfo, ImageViewType, SampleCountFlags, SwapchainCreateInfoKHR,
+        SwapchainKHR,
+    },
     Device, Instance,
 };
 use log::warn;
+use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
-use super::{Queue, Surface};
+use super::{AllocatedImage, Queue, Surface};
 
 pub struct Swapchain {
     device: Device,
@@ -14,12 +19,15 @@ pub struct Swapchain {
     pub image_format: Format,
     _images: Vec<Image>,
     pub image_views: Vec<ImageView>,
+    depth_image: AllocatedImage,
+    pub depth_image_view: ImageView,
 }
 
 impl Swapchain {
     pub fn new(
         instance: &Instance,
         device: &Device,
+        allocator: &Allocator,
         surface: &Surface,
         queue: &Queue,
     ) -> Result<Swapchain, String> {
@@ -88,6 +96,55 @@ impl Swapchain {
             image_views.push(image_view);
         }
 
+        let depth_image_create_info = ImageCreateInfo::builder()
+            .image_type(ImageType::TYPE_2D)
+            .format(Format::D32_SFLOAT)
+            .extent(Extent3D {
+                width: extent.width,
+                height: extent.height,
+                depth: 1,
+            })
+            .mip_levels(1)
+            .array_layers(1)
+            .samples(SampleCountFlags::TYPE_1)
+            .tiling(ImageTiling::OPTIMAL)
+            .usage(ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
+            .build();
+
+        let depth_image_allocation_create_info = AllocationCreateInfo {
+            usage: vk_mem::MemoryUsage::GpuOnly,
+            required_flags: vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            ..Default::default()
+        };
+
+        let (image, allocation) = unsafe {
+            allocator.create_image(
+                &depth_image_create_info,
+                &depth_image_allocation_create_info,
+            )
+        }
+        .unwrap();
+
+        let depth_image = AllocatedImage { image, allocation };
+
+        let depth_image_view_create_info = ImageViewCreateInfo::builder()
+            .view_type(ImageViewType::TYPE_2D)
+            .image(depth_image.image)
+            .format(Format::D32_SFLOAT)
+            .subresource_range(
+                vk::ImageSubresourceRange::builder()
+                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
+                    .base_mip_level(0)
+                    .level_count(1)
+                    .base_array_layer(0)
+                    .layer_count(1)
+                    .build(),
+            )
+            .build();
+
+        let depth_image_view =
+            unsafe { device.create_image_view(&depth_image_view_create_info, None) }.unwrap();
+
         Ok(Swapchain {
             device: device.clone(),
             loader,
@@ -96,6 +153,8 @@ impl Swapchain {
             image_format,
             _images: images,
             image_views,
+            depth_image,
+            depth_image_view,
         })
     }
 
@@ -123,11 +182,13 @@ impl Swapchain {
             }
         }
     }
-}
 
-impl Drop for Swapchain {
-    fn drop(&mut self) {
+    pub fn free(&mut self, allocator: &mut Allocator) {
         unsafe {
+            self.device.destroy_image_view(self.depth_image_view, None);
+
+            allocator.destroy_image(self.depth_image.image, &mut self.depth_image.allocation);
+
             for image_view in &self.image_views {
                 self.device.destroy_image_view(*image_view, None);
             }
