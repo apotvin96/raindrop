@@ -1,8 +1,10 @@
 mod debug;
+mod material;
 mod mesh;
 mod primitives;
+mod render_object;
 
-use std::{mem::ManuallyDrop, ops::BitOrAssign};
+use std::{cell::RefCell, collections::HashMap, mem::ManuallyDrop, ops::BitOrAssign, rc::Rc};
 
 use ash::{
     extensions::ext::DebugUtils,
@@ -29,8 +31,12 @@ use primitives::Shader;
 use primitives::Surface;
 use primitives::Swapchain;
 
+use material::Material;
+
 use mesh::Mesh;
 use mesh::Vertex;
+
+use render_object::RenderObject;
 
 pub struct Renderer {
     framenumber: u64,
@@ -50,7 +56,8 @@ pub struct Renderer {
     present_semaphore: vk::Semaphore,
     fence: vk::Fence,
     mesh_pipeline: ManuallyDrop<Pipeline>,
-    mesh: Mesh,
+    meshes: HashMap<String, Rc<RefCell<Mesh>>>,
+    renderables: Vec<RenderObject>,
 }
 
 impl Renderer {
@@ -162,6 +169,8 @@ impl Renderer {
             };
 
         let mesh = Self::init_mesh(&mut allocator);
+        let mut meshes = HashMap::new();
+        meshes.insert("monkey".to_string(), Rc::new(RefCell::new(mesh)));
 
         Ok(Renderer {
             framenumber: 0,
@@ -181,7 +190,8 @@ impl Renderer {
             render_semaphore,
             present_semaphore,
             mesh_pipeline: ManuallyDrop::new(mesh_pipeline),
-            mesh,
+            meshes,
+            renderables: Vec::new(),
         })
     }
 
@@ -486,7 +496,6 @@ impl Renderer {
 
         self.command_manager.begin_main_command_buffer();
 
-        //let flash = (self.framenumber as f32 / 120.0).sin().abs();
         let flash = 0.0;
 
         let clear_values = [
@@ -518,13 +527,6 @@ impl Renderer {
 
         self.command_manager.bind_pipeline(&self.mesh_pipeline);
 
-        let offset = 0;
-        self.command_manager.bind_vertex_buffers(
-            0,
-            &[self.mesh.vertex_buffer.as_mut().unwrap().buffer],
-            &[offset],
-        );
-
         let cam_pos = glm::vec3(0.0, 0.0, -2.0);
         let view_mat = glm::translate(&glm::Mat4::identity(), &cam_pos);
 
@@ -537,24 +539,46 @@ impl Renderer {
 
         proj_mat[(1, 1)] *= -1.0;
 
-        let model_mat = glm::rotate(
-            &glm::Mat4::identity(),
-            self.framenumber as f32 / 100.0,
-            &glm::vec3(0.0, 1.0, 0.0),
-        );
+        let view_proj_mat = proj_mat * view_mat;
 
-        let matrix = proj_mat * view_mat * model_mat;
+        for (_, mesh) in &mut self.meshes.iter_mut() {
+            let offset = 0;
+            self.command_manager.bind_vertex_buffers(
+                0,
+                &[mesh
+                    .as_ref()
+                    .borrow_mut()
+                    .vertex_buffer
+                    .as_ref()
+                    .unwrap()
+                    .buffer],
+                &[offset],
+            );
 
-        let push_constants = MeshPushConstants {
-            render_matrix: matrix,
-            data: glm::vec4(0.0, 0.0, 0.0, 0.0),
-        };
+            let model_mat = glm::rotate(
+                &glm::Mat4::identity(),
+                self.framenumber as f32 / 100.0,
+                &glm::vec3(0.0, 1.0, 0.0),
+            );
 
-        self.command_manager
-            .push_constants(self.mesh_pipeline.pipeline_layout, push_constants);
+            let mvp: nalgebra::Matrix<
+                f32,
+                nalgebra::Const<4>,
+                nalgebra::Const<4>,
+                nalgebra::ArrayStorage<f32, 4, 4>,
+            > = view_proj_mat * model_mat;
 
-        self.command_manager
-            .draw(self.mesh.vertices.len() as u32, 1, 0, 0);
+            let push_constants = MeshPushConstants {
+                render_matrix: mvp,
+                data: glm::vec4(0.0, 0.0, 0.0, 0.0),
+            };
+
+            self.command_manager
+                .push_constants(self.mesh_pipeline.pipeline_layout, push_constants);
+
+            self.command_manager
+                .draw(mesh.as_ref().borrow_mut().vertex_count, 1, 0, 0);
+        }
 
         self.command_manager.end_render_pass();
 
@@ -582,7 +606,9 @@ impl Drop for Renderer {
                 .wait_for_fences(&[self.fence], true, 1000000000)
                 .expect("Failed to wait for fence");
 
-            self.mesh.free(&mut self.allocator);
+            for mesh in self.meshes.iter_mut() {
+                mesh.1.as_ref().borrow_mut().free(&mut self.allocator)
+            }
 
             self.device.destroy_semaphore(self.render_semaphore, None);
             self.device.destroy_semaphore(self.present_semaphore, None);

@@ -78,6 +78,7 @@ impl Vertex {
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub vertex_buffer: Option<AllocatedBuffer>,
+    pub vertex_count: u32,
 }
 
 impl Mesh {
@@ -125,9 +126,12 @@ impl Mesh {
                         }
                     }
 
+                    let vertex_count = vertices.len() as u32;
+
                     return Mesh {
                         vertices,
                         vertex_buffer: None,
+                        vertex_count: vertex_count,
                     };
                 }
             }
@@ -136,6 +140,7 @@ impl Mesh {
         Mesh {
             vertices: vec![],
             vertex_buffer: None,
+            vertex_count: 0,
         }
     }
 
@@ -170,6 +175,9 @@ impl Mesh {
         let allocated_buffer = AllocatedBuffer { buffer, allocation };
 
         self.vertex_buffer = Some(allocated_buffer);
+
+        // Clear out the vertices data since we've now uploaded it to the GPU
+        self.vertices = vec![];
 
         Ok(())
     }

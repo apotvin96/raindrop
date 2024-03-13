@@ -26,7 +26,7 @@ impl Engine {
 
         Ok(Engine {
             is_initialized: true,
-            renderer
+            renderer,
         })
     }
 
