@@ -144,44 +144,6 @@ impl Mesh {
         }
     }
 
-    pub fn upload(&mut self, allocator: &mut Allocator) -> Result<(), String> {
-        let (buffer, mut allocation) = unsafe {
-            // TODO: Figure out the right way to set memory usage since CpuToGpu is deprecated
-            #[allow(deprecated)]
-            allocator
-                .create_buffer(
-                    &BufferCreateInfo::builder()
-                        .size((self.vertices.len() * size_of::<Vertex>()) as u64)
-                        .usage(BufferUsageFlags::VERTEX_BUFFER)
-                        .build(),
-                    &AllocationCreateInfo {
-                        usage: vk_mem::MemoryUsage::CpuToGpu,
-                        ..Default::default()
-                    },
-                )
-                .unwrap()
-        };
-
-        let memory_handle = unsafe { allocator.map_memory(&mut allocation).unwrap() };
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                self.vertices.as_ptr() as *const u8,
-                memory_handle,
-                (self.vertices.len() * size_of::<Vertex>()) as usize,
-            );
-        }
-        unsafe { allocator.unmap_memory(&mut allocation) };
-
-        let allocated_buffer = AllocatedBuffer { buffer, allocation };
-
-        self.vertex_buffer = Some(allocated_buffer);
-
-        // Clear out the vertices data since we've now uploaded it to the GPU
-        self.vertices = vec![];
-
-        Ok(())
-    }
-
     pub fn free(&mut self, allocator: &mut Allocator) {
         if let Some(mut allocated_buffer) = self.vertex_buffer.take() {
             unsafe {
