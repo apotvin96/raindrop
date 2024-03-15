@@ -44,7 +44,6 @@ use mesh::Vertex;
 use render_object::RenderObject;
 
 pub struct Renderer {
-    framenumber: u64,
     boilerplate: Boilerplate,
     render_pass: RenderPass,
     framebuffers: Vec<Framebuffer>,
@@ -55,6 +54,7 @@ pub struct Renderer {
     meshes: HashMap<String, Rc<RefCell<Mesh>>>,
     materials: HashMap<String, Rc<RefCell<Material>>>,
     renderables: Vec<RenderObject>,
+    framenumber: u64,
 }
 
 impl Renderer {
@@ -137,12 +137,17 @@ impl Renderer {
             Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
         };
 
-        let mesh = Self::init_mesh(&mut boilerplate.allocator);
         let mut meshes = HashMap::new();
+
+        let mut mesh = Mesh::from_path("assets/models/monkey/monkey.glb");
+        Self::upload_mesh(&mut boilerplate.allocator, &mut mesh);
         meshes.insert("monkey".to_string(), Rc::new(RefCell::new(mesh)));
 
+        let mut mesh2 = Mesh::from_path("assets/models/monkey/monkey.glb");
+        Self::upload_mesh(&mut boilerplate.allocator, &mut mesh2);
+        meshes.insert("monkey2".to_string(), Rc::new(RefCell::new(mesh2)));
+
         Ok(Renderer {
-            framenumber: 0,
             boilerplate,
             render_pass,
             framebuffers,
@@ -153,6 +158,7 @@ impl Renderer {
             meshes,
             renderables: Vec::new(),
             materials: HashMap::new(),
+            framenumber: 0,
         })
     }
 
@@ -264,16 +270,6 @@ impl Renderer {
         Ok(framebuffers)
     }
 
-    fn init_mesh(allocator: &mut Allocator) -> Mesh {
-        trace!("Initializing: Mesh");
-
-        let mut mesh = Mesh::from_path("assets/models/monkey/monkey.glb");
-
-        Self::upload_mesh(allocator, &mut mesh);
-
-        mesh
-    }
-
     fn upload_mesh(allocator: &mut Allocator, mesh: &mut Mesh) {
         trace!("Uploading: Mesh");
 
@@ -381,6 +377,7 @@ impl Renderer {
 
         let view_proj_mat = proj_mat * view_mat;
 
+        let mut count = 0;
         for (_, mesh) in &mut self.meshes.iter_mut() {
             let offset = 0;
             self.boilerplate.command_manager.bind_vertex_buffers(
@@ -398,7 +395,7 @@ impl Renderer {
             let model_mat = glm::rotate(
                 &glm::Mat4::identity(),
                 self.framenumber as f32 / 100.0,
-                &glm::vec3(0.0, 1.0, 0.0),
+                &glm::vec3((count as f32) % 2.0, 1.0 - ((count as f32) % 2.0), 0.0),
             );
 
             let mvp: nalgebra::Matrix<
@@ -420,6 +417,8 @@ impl Renderer {
             self.boilerplate
                 .command_manager
                 .draw(mesh.as_ref().borrow_mut().vertex_count, 1, 0, 0);
+
+            count += 1;
         }
 
         self.boilerplate.command_manager.end_render_pass();
