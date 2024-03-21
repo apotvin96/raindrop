@@ -147,6 +147,18 @@ impl Renderer {
         Self::upload_mesh(&mut boilerplate.allocator, &mut mesh2);
         meshes.insert("monkey2".to_string(), Rc::new(RefCell::new(mesh2)));
 
+        let mut materials = HashMap::new();
+        materials.insert(
+            "defaultmesh".to_string(),
+            Rc::new(RefCell::new(Material {
+                pipeline: Rc::new(mesh_pipeline.clone()),
+            })),
+        );
+
+        let renderables = Self::init_scene(&meshes, &materials);
+
+        println!("Renderables: {}", renderables.len());
+
         Ok(Renderer {
             boilerplate,
             render_pass,
@@ -156,8 +168,8 @@ impl Renderer {
             present_semaphore,
             mesh_pipeline: ManuallyDrop::new(mesh_pipeline),
             meshes,
-            renderables: Vec::new(),
             materials: HashMap::new(),
+            renderables: renderables,
             framenumber: 0,
         })
     }
@@ -308,6 +320,39 @@ impl Renderer {
         mesh.vertices = vec![];
     }
 
+    fn init_scene(
+        meshes: &HashMap<String, Rc<RefCell<Mesh>>>,
+        materials: &HashMap<String, Rc<RefCell<Material>>>,
+    ) -> Vec<RenderObject> {
+        trace!("Initializing: Scene");
+
+        let monkey = RenderObject {
+            mesh: Rc::clone(meshes.get("monkey").unwrap()),
+            material: Rc::clone(materials.get("defaultmesh").unwrap()),
+            transform: glm::Mat4::identity(),
+        };
+
+        let mut renderables = vec![monkey];
+
+        for x in -20..20 {
+            for y in -20..20 {
+                let translation =
+                    glm::translate(&glm::Mat4::identity(), &glm::vec3(x as f32, 0.0, y as f32));
+                let scale = glm::scale(&glm::Mat4::identity(), &glm::vec3(0.2, 0.2, 0.2));
+
+                let tri = RenderObject {
+                    mesh: Rc::clone(meshes.get("monkey2").unwrap()),
+                    material: Rc::clone(materials.get("defaultmesh").unwrap()),
+                    transform: translation * scale,
+                };
+
+                renderables.push(tri);
+            }
+        }
+
+        renderables
+    }
+
     pub fn render(&mut self) {
         trace!("Rendering");
 
@@ -398,12 +443,7 @@ impl Renderer {
                 &glm::vec3((count as f32) % 2.0, 1.0 - ((count as f32) % 2.0), 0.0),
             );
 
-            let mvp: nalgebra::Matrix<
-                f32,
-                nalgebra::Const<4>,
-                nalgebra::Const<4>,
-                nalgebra::ArrayStorage<f32, 4, 4>,
-            > = view_proj_mat * model_mat;
+            let mvp = view_proj_mat * model_mat;
 
             let push_constants = MeshPushConstants {
                 render_matrix: mvp,

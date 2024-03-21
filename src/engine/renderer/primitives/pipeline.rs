@@ -18,6 +18,7 @@ use crate::engine::renderer::mesh::{MeshPushConstants, VertexInputDescription};
 
 use super::Shader;
 
+#[derive(Clone)]
 pub struct Pipeline {
     device: Device,
     // TODO: Eventually we should have a pipeline cache that reuses pipeline layouts if they already exist
