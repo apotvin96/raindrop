@@ -6,6 +6,7 @@ use ash::{
     },
     Device, Instance,
 };
+use gltf::image;
 use log::warn;
 use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
@@ -169,10 +170,13 @@ impl Swapchain {
     }
 
     pub fn present(&self, queue: &Queue, image_index: u32, wait_semaphores: &[vk::Semaphore]) {
+        let swapchains = [self.swapchain];
+        let image_indices = [image_index];
+
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(&wait_semaphores)
-            .swapchains(&[self.swapchain])
-            .image_indices(&[image_index])
+            .swapchains(&swapchains)
+            .image_indices(&image_indices)
             .build();
 
         match unsafe { self.loader.queue_present(queue.main_queue, &present_info) } {

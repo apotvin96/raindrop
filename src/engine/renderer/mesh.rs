@@ -153,6 +153,21 @@ impl Mesh {
     }
 }
 
+impl PartialEq for Mesh {
+    // TODO: What should I do if I care about comparing the geometry of the mesh while having no buffer?
+    // Either both have no vertex buffer or both have the same vertex buffer
+    fn eq(&self, other: &Self) -> bool {
+        let both_none = self.vertex_buffer.is_none() && other.vertex_buffer.is_none();
+
+        let both_some = self.vertex_buffer.is_some() && other.vertex_buffer.is_some();
+
+        return both_none
+            || (both_some
+                && self.vertex_buffer.as_ref().unwrap().buffer
+                    == other.vertex_buffer.as_ref().unwrap().buffer);
+    }
+}
+
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Serialize)]
 pub struct MeshPushConstants {

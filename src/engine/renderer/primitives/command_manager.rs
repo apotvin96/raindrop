@@ -125,17 +125,20 @@ impl CommandManager {
     ) {
         let submit_command_buffers = [self.main_command_buffer];
 
-        let pipeline_stage_flags = PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT;
+        let pipeline_stage_flags = [PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+
         let submit_info = SubmitInfo::builder()
-            .wait_dst_stage_mask(&[pipeline_stage_flags])
+            .wait_dst_stage_mask(&pipeline_stage_flags)
             .wait_semaphores(&wait_semaphores)
             .signal_semaphores(&signal_semaphores)
             .command_buffers(&submit_command_buffers)
             .build();
 
+        let submit_infos = [submit_info];
+
         match unsafe {
             self.device
-                .queue_submit(self.queue.main_queue, &[submit_info], fence)
+                .queue_submit(self.queue.main_queue, &submit_infos, fence)
         } {
             Ok(_) => {}
             Err(_) => {
@@ -165,11 +168,7 @@ impl CommandManager {
         };
     }
 
-    pub fn push_constants<T: Serialize>(
-        &self,
-        layout: PipelineLayout,
-        constants: T,
-    ) {
+    pub fn push_constants<T: Serialize>(&self, layout: PipelineLayout, constants: T) {
         let bytes = bincode::serialize(&constants).unwrap();
 
         unsafe {

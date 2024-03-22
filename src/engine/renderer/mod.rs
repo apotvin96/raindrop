@@ -8,7 +8,7 @@ mod render_object;
 use std::{
     cell::RefCell,
     collections::HashMap,
-    mem::{size_of, ManuallyDrop},
+    mem::{self, size_of, ManuallyDrop},
     rc::Rc,
 };
 
@@ -50,7 +50,8 @@ pub struct Renderer {
     render_semaphore: vk::Semaphore,
     present_semaphore: vk::Semaphore,
     fence: vk::Fence,
-    mesh_pipeline: ManuallyDrop<Pipeline>,
+    pipelines: HashMap<String, Rc<RefCell<Pipeline>>>,
+    // mesh_pipeline: ManuallyDrop<Pipeline>,
     meshes: HashMap<String, Rc<RefCell<Mesh>>>,
     materials: HashMap<String, Rc<RefCell<Material>>>,
     renderables: Vec<RenderObject>,
@@ -137,6 +138,12 @@ impl Renderer {
             Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
         };
 
+        let mut pipelines = HashMap::new();
+        pipelines.insert(
+            "meshpipeline".to_string(),
+            Rc::new(RefCell::new(mesh_pipeline)),
+        );
+
         let mut meshes = HashMap::new();
 
         let mut mesh = Mesh::from_path("assets/models/monkey/monkey.glb");
@@ -151,7 +158,7 @@ impl Renderer {
         materials.insert(
             "defaultmesh".to_string(),
             Rc::new(RefCell::new(Material {
-                pipeline: Rc::new(mesh_pipeline.clone()),
+                pipeline: Rc::clone(pipelines.get("meshpipeline").unwrap()),
             })),
         );
 
@@ -166,7 +173,8 @@ impl Renderer {
             fence,
             render_semaphore,
             present_semaphore,
-            mesh_pipeline: ManuallyDrop::new(mesh_pipeline),
+            //mesh_pipeline: ManuallyDrop::new(mesh_pipeline),
+            pipelines: pipelines,
             meshes,
             materials: HashMap::new(),
             renderables: renderables,
@@ -237,10 +245,13 @@ impl Renderer {
             .dst_access_mask(AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
             .build();
 
+        let attachments = [attachment_description, depth_attachment_description];
+        let dependencies = [color_dependency, depth_dependency];
+
         let render_pass_create_info = RenderPassCreateInfo::builder()
-            .attachments(&[attachment_description, depth_attachment_description])
+            .attachments(&attachments)
             .subpasses(&subpass_descriptions)
-            .dependencies(&[color_dependency, depth_dependency])
+            .dependencies(&dependencies)
             .build();
 
         match unsafe { device.create_render_pass(&render_pass_create_info, None) } {
@@ -312,7 +323,10 @@ impl Renderer {
         }
         unsafe { allocator.unmap_memory(&mut allocation) };
 
-        let allocated_buffer = AllocatedBuffer { buffer, allocation };
+        let allocated_buffer = AllocatedBuffer {
+            buffer,
+            allocation,
+        };
 
         mesh.vertex_buffer = Some(allocated_buffer);
 
@@ -404,11 +418,11 @@ impl Renderer {
             .command_manager
             .begin_render_pass(&render_pass_begin_info);
 
-        self.boilerplate
-            .command_manager
-            .bind_pipeline(&self.mesh_pipeline);
+        // self.boilerplate
+        //     .command_manager
+        //     .bind_pipeline(&self.mesh_pipeline);
 
-        let cam_pos = glm::vec3(0.0, 0.0, -2.0);
+        let cam_pos = glm::vec3(0.0, -3.0, -10.0);
         let view_mat = glm::translate(&glm::Mat4::identity(), &cam_pos);
 
         let mut proj_mat = glm::perspective(
@@ -422,43 +436,55 @@ impl Renderer {
 
         let view_proj_mat = proj_mat * view_mat;
 
-        let mut count = 0;
-        for (_, mesh) in &mut self.meshes.iter_mut() {
-            let offset = 0;
-            self.boilerplate.command_manager.bind_vertex_buffers(
-                0,
-                &[mesh
-                    .as_ref()
-                    .borrow_mut()
-                    .vertex_buffer
-                    .as_ref()
-                    .unwrap()
-                    .buffer],
-                &[offset],
+        let mut last_mesh: Option<Rc<RefCell<Mesh>>> = None;
+        let mut last_material: Option<Rc<RefCell<Material>>> = None;
+        for renderable in &self.renderables {
+            if last_mesh != Some(Rc::clone(&renderable.mesh)) {
+                let mesh = renderable.mesh.borrow();
+                let offset = 0;
+                self.boilerplate.command_manager.bind_vertex_buffers(
+                    0,
+                    &[mesh.vertex_buffer.as_ref().unwrap().buffer],
+                    &[offset],
+                );
+
+                last_mesh = Some(Rc::clone(&renderable.mesh));
+            }
+
+            if last_material != Some(Rc::clone(&renderable.material)) {
+                self.boilerplate
+                    .command_manager
+                    .bind_pipeline(&renderable.material.borrow().pipeline.borrow());
+
+                last_material = Some(Rc::clone(&renderable.material));
+            }
+
+            let rotate = glm::rotate(
+                &renderable.transform,
+                self.framenumber as f32 * 0.1,
+                &glm::vec3(0.0, 1.0, 0.0),
             );
 
-            let model_mat = glm::rotate(
-                &glm::Mat4::identity(),
-                self.framenumber as f32 / 100.0,
-                &glm::vec3((count as f32) % 2.0, 1.0 - ((count as f32) % 2.0), 0.0),
-            );
-
-            let mvp = view_proj_mat * model_mat;
+            let mvp = view_proj_mat * rotate;
 
             let push_constants = MeshPushConstants {
                 render_matrix: mvp,
                 data: glm::vec4(0.0, 0.0, 0.0, 0.0),
             };
 
-            self.boilerplate
-                .command_manager
-                .push_constants(self.mesh_pipeline.pipeline_layout, push_constants);
+            self.boilerplate.command_manager.push_constants(
+                renderable
+                    .material
+                    .borrow()
+                    .pipeline
+                    .borrow()
+                    .pipeline_layout,
+                push_constants,
+            );
 
             self.boilerplate
                 .command_manager
-                .draw(mesh.as_ref().borrow_mut().vertex_count, 1, 0, 0);
-
-            count += 1;
+                .draw(renderable.mesh.borrow().vertex_count, 1, 0, 0);
         }
 
         self.boilerplate.command_manager.end_render_pass();
@@ -494,13 +520,6 @@ impl Drop for Renderer {
                 .wait_for_fences(&[self.fence], true, 1000000000)
                 .expect("Failed to wait for fence");
 
-            for mesh in self.meshes.iter_mut() {
-                mesh.1
-                    .as_ref()
-                    .borrow_mut()
-                    .free(&mut self.boilerplate.allocator)
-            }
-
             self.boilerplate
                 .device
                 .destroy_semaphore(self.render_semaphore, None);
@@ -509,8 +528,16 @@ impl Drop for Renderer {
                 .destroy_semaphore(self.present_semaphore, None);
             self.boilerplate.device.destroy_fence(self.fence, None);
 
-            ManuallyDrop::drop(&mut self.mesh_pipeline);
+            self.renderables = vec![];
+            self.materials = HashMap::new();
+            self.pipelines = HashMap::new();
 
+            for mesh in self.meshes.iter_mut() {
+                mesh.1
+                    .as_ref()
+                    .borrow_mut()
+                    .free(&mut self.boilerplate.allocator)
+            }
             for framebuffer in &self.framebuffers {
                 self.boilerplate
                     .device
