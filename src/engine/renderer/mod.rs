@@ -5,12 +5,7 @@ mod mesh;
 mod primitives;
 mod render_object;
 
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    mem::{self, size_of, ManuallyDrop},
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, mem::size_of, rc::Rc};
 
 use ash::{
     vk::{
@@ -51,7 +46,6 @@ pub struct Renderer {
     present_semaphore: vk::Semaphore,
     fence: vk::Fence,
     pipelines: HashMap<String, Rc<RefCell<Pipeline>>>,
-    // mesh_pipeline: ManuallyDrop<Pipeline>,
     meshes: HashMap<String, Rc<RefCell<Mesh>>>,
     materials: HashMap<String, Rc<RefCell<Material>>>,
     renderables: Vec<RenderObject>,
@@ -164,8 +158,6 @@ impl Renderer {
 
         let renderables = Self::init_scene(&meshes, &materials);
 
-        println!("Renderables: {}", renderables.len());
-
         Ok(Renderer {
             boilerplate,
             render_pass,
@@ -173,7 +165,6 @@ impl Renderer {
             fence,
             render_semaphore,
             present_semaphore,
-            //mesh_pipeline: ManuallyDrop::new(mesh_pipeline),
             pipelines: pipelines,
             meshes,
             materials: HashMap::new(),
@@ -323,10 +314,7 @@ impl Renderer {
         }
         unsafe { allocator.unmap_memory(&mut allocation) };
 
-        let allocated_buffer = AllocatedBuffer {
-            buffer,
-            allocation,
-        };
+        let allocated_buffer = AllocatedBuffer { buffer, allocation };
 
         mesh.vertex_buffer = Some(allocated_buffer);
 
@@ -367,61 +355,7 @@ impl Renderer {
         renderables
     }
 
-    pub fn render(&mut self) {
-        trace!("Rendering");
-
-        unsafe {
-            self.boilerplate
-                .device
-                .wait_for_fences(&[self.fence], true, 1000000000)
-        }
-        .expect("Failed to wait for fence");
-
-        unsafe { self.boilerplate.device.reset_fences(&[self.fence]) }
-            .expect("Failed to reset fence");
-
-        let (image_index, _) = self
-            .boilerplate
-            .swapchain
-            .acquire_next_image(self.present_semaphore)
-            .expect("Failed to acquire next image");
-
-        self.boilerplate.command_manager.begin_main_command_buffer();
-
-        let flash = 0.0;
-
-        let clear_values = [
-            ClearValue {
-                color: vk::ClearColorValue {
-                    float32: [0.0, 0.0, flash, 1.0],
-                },
-            },
-            ClearValue {
-                depth_stencil: vk::ClearDepthStencilValue {
-                    depth: 1.0,
-                    stencil: 0,
-                },
-            },
-        ];
-
-        let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-            .render_pass(self.render_pass)
-            .render_area(Rect2D {
-                offset: vk::Offset2D { x: 0, y: 0 },
-                extent: self.boilerplate.swapchain.extent,
-            })
-            .framebuffer(self.framebuffers[image_index as usize])
-            .clear_values(&clear_values)
-            .build();
-
-        self.boilerplate
-            .command_manager
-            .begin_render_pass(&render_pass_begin_info);
-
-        // self.boilerplate
-        //     .command_manager
-        //     .bind_pipeline(&self.mesh_pipeline);
-
+    fn render_objects(&mut self) {
         let cam_pos = glm::vec3(0.0, -3.0, -10.0);
         let view_mat = glm::translate(&glm::Mat4::identity(), &cam_pos);
 
@@ -486,6 +420,60 @@ impl Renderer {
                 .command_manager
                 .draw(renderable.mesh.borrow().vertex_count, 1, 0, 0);
         }
+    }
+
+    pub fn render(&mut self) {
+        trace!("Rendering");
+
+        unsafe {
+            self.boilerplate
+                .device
+                .wait_for_fences(&[self.fence], true, 1000000000)
+        }
+        .expect("Failed to wait for fence");
+
+        unsafe { self.boilerplate.device.reset_fences(&[self.fence]) }
+            .expect("Failed to reset fence");
+
+        let (image_index, _) = self
+            .boilerplate
+            .swapchain
+            .acquire_next_image(self.present_semaphore)
+            .expect("Failed to acquire next image");
+
+        self.boilerplate.command_manager.begin_main_command_buffer();
+
+        let flash = 0.0;
+
+        let clear_values = [
+            ClearValue {
+                color: vk::ClearColorValue {
+                    float32: [0.0, 0.0, flash, 1.0],
+                },
+            },
+            ClearValue {
+                depth_stencil: vk::ClearDepthStencilValue {
+                    depth: 1.0,
+                    stencil: 0,
+                },
+            },
+        ];
+
+        let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+            .render_pass(self.render_pass)
+            .render_area(Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: self.boilerplate.swapchain.extent,
+            })
+            .framebuffer(self.framebuffers[image_index as usize])
+            .clear_values(&clear_values)
+            .build();
+
+        self.boilerplate
+            .command_manager
+            .begin_render_pass(&render_pass_begin_info);
+
+        self.render_objects();
 
         self.boilerplate.command_manager.end_render_pass();
 
@@ -538,11 +526,14 @@ impl Drop for Renderer {
                     .borrow_mut()
                     .free(&mut self.boilerplate.allocator)
             }
+            self.meshes = HashMap::new();
+
             for framebuffer in &self.framebuffers {
                 self.boilerplate
                     .device
                     .destroy_framebuffer(*framebuffer, None);
             }
+
             self.boilerplate
                 .device
                 .destroy_render_pass(self.render_pass, None);
