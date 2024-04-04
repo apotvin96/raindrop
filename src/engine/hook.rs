@@ -1,9 +1,4 @@
-use std::sync::Arc;
-
-use winit::{
-    event_loop::EventLoop,
-    window::WindowBuilder,
-};
+use winit::{event_loop::EventLoop, window::WindowBuilder};
 
 use game_loop::game_loop;
 
@@ -21,8 +16,6 @@ pub fn hook(config: Config) {
         ))
         .build(&event_loop)
         .unwrap();
-
-    let window = Arc::new(window);
 
     let engine = Engine::new(config, &window).expect("Failed to init engine");
 
