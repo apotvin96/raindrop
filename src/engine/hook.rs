@@ -17,7 +17,7 @@ pub fn hook(config: Config) {
         .build(&event_loop)
         .unwrap();
 
-    let engine = Engine::new(config, &window).expect("Failed to init engine");
+    let engine = Engine::new(&config, &window).expect("Failed to init engine");
 
     game_loop(
         event_loop,

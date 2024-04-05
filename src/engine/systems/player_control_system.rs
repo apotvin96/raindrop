@@ -1,32 +1,37 @@
-use bevy_ecs::{query::With, system::{Query, Res}};
-
 use crate::engine::components::{Camera, Player};
+use crate::engine::resources::ControlInput;
+use bevy_ecs::{
+    query::With,
+    system::{Query, Res},
+};
+use winit::event::VirtualKeyCode;
 
-// fn player_control_system(query: Query<&mut Camera, With<Player>>, input: Res<Input>) {
-//     for mut camera in query.iter_mut() {
-//         let mut translation = glm::vec3(0.0, 0.0, 0.0);
-//         let mut rotation = glm::vec3(0.0, 0.0, 0.0);
+pub fn player_control_system(
+    mut query: Query<&mut Camera, With<Player>>,
+    control_input: Res<ControlInput>,
+) {
+    for mut camera in &mut query {
+        let mut translation = glm::vec3(0.0, 0.0, 0.0);
 
-//         if input.pressed(KeyCode::W) {
-//             translation.z -= 0.1;
-//         }
-//         if input.pressed(KeyCode::S) {
-//             translation.z += 0.1;
-//         }
-//         if input.pressed(KeyCode::A) {
-//             translation.x -= 0.1;
-//         }
-//         if input.pressed(KeyCode::D) {
-//             translation.x += 0.1;
-//         }
-//         if input.pressed(KeyCode::Q) {
-//             translation.y -= 0.1;
-//         }
-//         if input.pressed(KeyCode::E) {
-//             translation.y += 0.1;
-//         }
+        if control_input.pressed(VirtualKeyCode::W) {
+            translation.z -= 0.1;
+        }
+        if control_input.pressed(VirtualKeyCode::S) {
+            translation.z += 0.1;
+        }
+        if control_input.pressed(VirtualKeyCode::A) {
+            translation.x -= 0.1;
+        }
+        if control_input.pressed(VirtualKeyCode::D) {
+            translation.x += 0.1;
+        }
+        if control_input.pressed(VirtualKeyCode::Q) {
+            translation.y -= 0.1;
+        }
+        if control_input.pressed(VirtualKeyCode::E) {
+            translation.y += 0.1;
+        }
 
-//         camera.translate(translation);
-//         camera.rotate(rotation);
-//     }
-// }
+        camera.translate(translation);
+    }
+}

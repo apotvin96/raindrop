@@ -53,10 +53,10 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(_config: Config, window: &winit::window::Window) -> Result<Renderer, String> {
+    pub fn new(config: &Config, window: &winit::window::Window) -> Result<Renderer, String> {
         trace!("Initializing: Renderer");
 
-        let mut boilerplate = match Boilerplate::new(_config, window) {
+        let mut boilerplate = match Boilerplate::new(config, window) {
             Ok(boilerplate) => boilerplate,
             Err(e) => return Err("Failed to init boilerplate: ".to_owned() + &e),
         };
@@ -355,9 +355,9 @@ impl Renderer {
         renderables
     }
 
-    fn render_objects(&mut self) {
-        let cam_pos = glm::vec3(0.0, -3.0, -10.0);
-        let view_mat = glm::translate(&glm::Mat4::identity(), &cam_pos);
+    fn render_objects(&mut self, view_matrix: glm::Mat4) {
+        // let cam_pos = glm::vec3(0.0, -3.0, -10.0);
+        // let view_mat = glm::translate(&glm::Mat4::identity(), &cam_pos);
 
         let mut proj_mat = glm::perspective(
             1600.0 / 900.0,
@@ -368,7 +368,7 @@ impl Renderer {
 
         proj_mat[(1, 1)] *= -1.0;
 
-        let view_proj_mat = proj_mat * view_mat;
+        let view_proj_mat = proj_mat * view_matrix;
 
         let mut last_mesh: Option<Rc<RefCell<Mesh>>> = None;
         let mut last_material: Option<Rc<RefCell<Material>>> = None;
@@ -422,7 +422,7 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, view_matrix: glm::Mat4) {
         trace!("Rendering");
 
         unsafe {
@@ -473,7 +473,7 @@ impl Renderer {
             .command_manager
             .begin_render_pass(&render_pass_begin_info);
 
-        self.render_objects();
+        self.render_objects(view_matrix);
 
         self.boilerplate.command_manager.end_render_pass();
 

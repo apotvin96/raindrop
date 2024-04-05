@@ -1,5 +1,6 @@
 mod components;
 mod renderer;
+mod resources;
 mod systems;
 
 pub mod hook;
@@ -16,28 +17,35 @@ use winit::{
 use crate::config::Config;
 use renderer::Renderer;
 
+use self::{
+    components::{Camera, Player},
+    resources::ControlInput,
+};
+
 pub struct Engine {
     is_initialized: bool,
-    renderer: Renderer,
     world: World,
     update_schedule: Schedule,
     render_schedule: Schedule,
 }
 
 impl Engine {
-    pub fn new(config: Config, window: &winit::window::Window) -> Result<Engine, String> {
-        let renderer = match Renderer::new(config, window) {
-            Ok(renderer) => renderer,
-            Err(e) => return Err("Failed to init engine: renderer: ".to_owned() + &e),
-        };
+    pub fn new(config: &Config, window: &winit::window::Window) -> Result<Engine, String> {
+        let mut world = World::new();
 
-        let world = World::new();
-        let update_schedule = Schedule::default();
-        let render_schedule = Schedule::default();
+        world.insert_resource(resources::ControlInput::default());
+        world.insert_non_send_resource(resources::RendererResource::new(config, window));
+
+        world.spawn((Camera::new(), Player::new()));
+
+        let mut update_schedule = Schedule::default();
+        update_schedule.add_systems(systems::player_control_system::player_control_system);
+
+        let mut render_schedule = Schedule::default();
+        render_schedule.add_systems(systems::renderer_system::renderer_system);
 
         Ok(Engine {
             is_initialized: true,
-            renderer,
             world,
             update_schedule,
             render_schedule,
@@ -48,14 +56,14 @@ impl Engine {
         trace!("Updating");
 
         self.update_schedule.run(&mut self.world);
-
-        self.render_schedule.run(&mut self.world)
     }
 
     pub fn render(&mut self, _window: &Window) {
         trace!("Rendering");
 
-        self.renderer.render();
+        // self.renderer.render();
+
+        self.render_schedule.run(&mut self.world)
     }
 
     pub fn handle_event(&mut self, event: &winit::event::Event<()>) -> bool {
@@ -78,7 +86,19 @@ impl Engine {
                     (VirtualKeyCode::Escape, _) => {
                         return false;
                     }
-                    _ => {}
+                    (keycode, state) => {
+                        let mut control_input =
+                            self.world.get_resource_mut::<ControlInput>().unwrap();
+
+                        match state {
+                            winit::event::ElementState::Pressed => {
+                                control_input.set_key_down(*keycode);
+                            }
+                            winit::event::ElementState::Released => {
+                                control_input.set_key_up(*keycode);
+                            }
+                        }
+                    }
                 },
                 WindowEvent::CloseRequested => {
                     return false;
