@@ -6,7 +6,6 @@ use ash::{
     },
     Device, Instance,
 };
-use gltf::image;
 use log::warn;
 use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
@@ -36,14 +35,20 @@ impl Swapchain {
 
         let extent = surface.capabilities.current_extent;
 
+        let min_image_count = surface.capabilities.min_image_count;
+        let mut max_image_count = surface.capabilities.max_image_count;
+        if max_image_count == 0 {
+            max_image_count = 3;
+        }
+
         let create_info = SwapchainCreateInfoKHR::builder()
             .surface(surface.surface)
             .image_format(surface.formats.first().unwrap().format)
             .image_color_space(surface.formats.first().unwrap().color_space)
             // Try for 3 images, but otherwise pick something in the range the swapchain allows
             .min_image_count(
-                3.max(surface.capabilities.min_image_count)
-                    .min(surface.capabilities.max_image_count),
+                3.max(min_image_count)
+                    .min(max_image_count),
             )
             .image_array_layers(1)
             .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)

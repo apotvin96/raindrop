@@ -20,7 +20,8 @@ pub struct Engine {
     is_initialized: bool,
     renderer: Renderer,
     world: World,
-    schedule: Schedule,
+    update_schedule: Schedule,
+    render_schedule: Schedule,
 }
 
 impl Engine {
@@ -31,20 +32,24 @@ impl Engine {
         };
 
         let world = World::new();
-        let schedule = Schedule::default();
+        let update_schedule = Schedule::default();
+        let render_schedule = Schedule::default();
 
         Ok(Engine {
             is_initialized: true,
             renderer,
             world,
-            schedule,
+            update_schedule,
+            render_schedule,
         })
     }
 
     pub fn update(&mut self) {
         trace!("Updating");
 
-        self.schedule.run(&mut self.world);
+        self.update_schedule.run(&mut self.world);
+
+        self.render_schedule.run(&mut self.world)
     }
 
     pub fn render(&mut self, _window: &Window) {

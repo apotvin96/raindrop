@@ -57,7 +57,7 @@ impl Boilerplate {
             Err(e) => return Err("Failed to init renderer: device: ".to_owned() + &e),
         };
 
-        let mut allocator = match Self::init_allocator(&instance, &physical_device, &device) {
+        let allocator = match Self::init_allocator(&instance, &physical_device, &device) {
             Ok(allocator) => allocator,
             Err(e) => return Err("Failed to init renderer: allocator: ".to_owned() + &e),
         };

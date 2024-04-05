@@ -13,7 +13,7 @@ pub struct Camera {
     /**
        The calculated view matrix of the camera
     */
-    viewMatrix: glm::Mat4,
+    view_matrix: glm::Mat4,
     /**
        If the camera has been moved or rotated, and the view matrix needs to be recalculated
     */
@@ -25,12 +25,12 @@ impl Camera {
         Camera {
             translation: glm::Vec3::zeros(),
             rotation: glm::Vec3::zeros(),
-            viewMatrix: glm::Mat4::identity(),
+            view_matrix: glm::Mat4::identity(),
             dirty: true,
         }
     }
 
-    pub fn viewMatrix(&mut self) -> glm::Mat4 {
+    pub fn view_matrix(&mut self) -> glm::Mat4 {
         if self.dirty {
             let translation = self.translation;
             let rotation = self.rotation;
@@ -43,12 +43,12 @@ impl Camera {
                 );
             let up = glm::vec3(0.0, 1.0, 0.0);
 
-            self.viewMatrix = glm::look_at(&translation, &center, &up);
+            self.view_matrix = glm::look_at(&translation, &center, &up);
 
             self.dirty = false;
         }
 
-        self.viewMatrix
+        self.view_matrix
     }
 
     pub fn get_translation(&self) -> glm::Vec3 {

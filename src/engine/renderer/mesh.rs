@@ -1,16 +1,15 @@
 use std::{mem::size_of, path::Path};
 
 use ash::vk::{
-    BufferCreateInfo, BufferUsageFlags, PipelineVertexInputStateCreateFlags,
-    VertexInputAttributeDescription, VertexInputBindingDescription, VertexInputRate,
+    PipelineVertexInputStateCreateFlags, VertexInputAttributeDescription,
+    VertexInputBindingDescription, VertexInputRate,
 };
 use gltf::mesh::Mode;
-// use gpu_allocator::vulkan::{AllocationCreateDesc, AllocationScheme, Allocator};
 
 use memoffset::offset_of;
 use rand::Rng;
 use serde_derive::Serialize;
-use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
+use vk_mem::Allocator;
 
 use super::primitives::AllocatedBuffer;
 
