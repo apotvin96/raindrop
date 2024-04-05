@@ -15,7 +15,6 @@ use winit::{
 };
 
 use crate::config::Config;
-use renderer::Renderer;
 
 use self::{
     components::{Camera, Player},
@@ -52,7 +51,7 @@ impl Engine {
         })
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, delta_time: f64) {
         trace!("Updating");
 
         self.update_schedule.run(&mut self.world);
@@ -60,8 +59,6 @@ impl Engine {
 
     pub fn render(&mut self, _window: &Window) {
         trace!("Rendering");
-
-        // self.renderer.render();
 
         self.render_schedule.run(&mut self.world)
     }

@@ -26,7 +26,7 @@ pub fn hook(config: Config) {
         60,
         0.1,
         |g| {
-            g.game.update();
+            g.game.update(g.fixed_time_step());
         },
         |g| {
             g.game.render(&g.window);
