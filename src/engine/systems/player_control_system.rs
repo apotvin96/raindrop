@@ -11,19 +11,27 @@ pub fn player_control_system(
     control_input: Res<ControlInput>,
 ) {
     for mut camera in &mut query {
+        let current_rotation = camera.get_rotation();
+
         let mut translation = glm::vec3(0.0, 0.0, 0.0);
+        let mut rotation = glm::vec3(0.0, 0.0, 0.0);
 
         if control_input.pressed(VirtualKeyCode::W) {
-            translation.z -= 0.1;
+            // translation.z -= 0.1;
+            translation.x += current_rotation.y.cos() * 0.1;
+            translation.z += current_rotation.y.sin() * 0.1;
         }
         if control_input.pressed(VirtualKeyCode::S) {
-            translation.z += 0.1;
+            translation.x -= current_rotation.y.cos() * 0.1;
+            translation.z -= current_rotation.y.sin() * 0.1;
         }
         if control_input.pressed(VirtualKeyCode::A) {
-            translation.x -= 0.1;
+            translation.x += current_rotation.y.sin() * 0.1;
+            translation.z -= current_rotation.y.cos() * 0.1;
         }
         if control_input.pressed(VirtualKeyCode::D) {
-            translation.x += 0.1;
+            translation.x -= current_rotation.y.sin() * 0.1;
+            translation.z += current_rotation.y.cos() * 0.1;
         }
         if control_input.pressed(VirtualKeyCode::Q) {
             translation.y -= 0.1;
@@ -32,6 +40,14 @@ pub fn player_control_system(
             translation.y += 0.1;
         }
 
+        if control_input.pressed(VirtualKeyCode::Left) {
+            rotation.y -= 0.1;
+        }
+        if control_input.pressed(VirtualKeyCode::Right) {
+            rotation.y += 0.1;
+        }
+
         camera.translate(translation);
+        camera.rotate(rotation)
     }
 }

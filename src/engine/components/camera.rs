@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy_ecs::component::Component;
 
 #[derive(Component)]
@@ -24,7 +26,7 @@ impl Camera {
     pub fn new() -> Camera {
         Camera {
             translation: glm::Vec3::zeros(),
-            rotation: glm::Vec3::zeros(),
+            rotation: glm::Vec3::new(0.0, -PI / 2.0, 0.0),
             view_matrix: glm::Mat4::identity(),
             dirty: true,
         }
@@ -36,11 +38,11 @@ impl Camera {
             let rotation = self.rotation;
 
             let center = translation
-                + glm::vec3(
+                + glm::normalize(&glm::vec3(
                     rotation.x.cos() * rotation.y.cos(),
-                    rotation.y.sin(),
-                    rotation.x.sin() * rotation.y.cos(),
-                );
+                    rotation.x.sin(),
+                    rotation.x.cos() * rotation.y.sin(),
+                ));
             let up = glm::vec3(0.0, 1.0, 0.0);
 
             self.view_matrix = glm::look_at(&translation, &center, &up);
