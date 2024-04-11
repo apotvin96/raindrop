@@ -1,9 +1,6 @@
 use crate::engine::components::{Camera, Player};
 use crate::engine::resources::{ControlInput, Time};
-use bevy_ecs::{
-    query::With,
-    system::{Query, Res},
-};
+use bevy_ecs::system::{Query, Res};
 use winit::event::VirtualKeyCode;
 
 pub fn player_control_system(
@@ -14,8 +11,8 @@ pub fn player_control_system(
     for (mut camera, player) in &mut query {
         let current_rotation = camera.get_rotation();
 
-        let mut translation = glm::vec3(0.0, 0.0, 0.0);
-        let mut rotation = glm::vec3(0.0, 0.0, 0.0);
+        let mut translation = glm::Vec3::zeros();
+        let mut rotation = glm::Vec3::zeros();
 
         if control_input.pressed(VirtualKeyCode::W) {
             translation.x += current_rotation.y.cos() * player.movement_speed * time.delta_time;

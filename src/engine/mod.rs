@@ -1,3 +1,4 @@
+mod assets;
 mod components;
 mod renderer;
 mod resources;

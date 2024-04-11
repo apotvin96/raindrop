@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use bevy_ecs::system::Resource;
-use log::warn;
 use winit::event::VirtualKeyCode;
 
 #[derive(Resource, Default)]
