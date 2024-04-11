@@ -1,3 +1,6 @@
+use bevy_ecs::system::Resource;
+
+#[derive(Resource, Default)]
 pub struct Time {
     pub delta_time: f32,
 }

@@ -55,6 +55,9 @@ impl Engine {
     pub fn update(&mut self, delta_time: f64) {
         trace!("Updating");
 
+        let mut time = self.world.get_resource_mut::<resources::Time>().unwrap();
+        time.delta_time = delta_time as f32;
+
         self.update_schedule.run(&mut self.world);
     }
 
