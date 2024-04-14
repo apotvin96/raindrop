@@ -355,12 +355,12 @@ impl Renderer {
         renderables
     }
 
-    fn render_objects(&mut self, view_matrix: glm::Mat4) {
+    fn render_objects(&mut self, delta_time: f32, view_matrix: glm::Mat4) {
         // let cam_pos = glm::vec3(0.0, -3.0, -10.0);
         // let view_mat = glm::translate(&glm::Mat4::identity(), &cam_pos);
 
         let mut proj_mat = glm::perspective(
-            1600.0 / 900.0,
+            800.0 / 600.0,
             glm::radians(&glm::vec1(70.0))[0],
             0.1,
             200.0,
@@ -395,7 +395,7 @@ impl Renderer {
 
             let rotate = glm::rotate(
                 &renderable.transform,
-                self.framenumber as f32 * 0.1,
+                self.framenumber as f32 * delta_time,
                 &glm::vec3(0.0, 1.0, 0.0),
             );
 
@@ -422,7 +422,7 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self, view_matrix: glm::Mat4) {
+    pub fn render(&mut self, delta_time: f32, view_matrix: glm::Mat4) {
         trace!("Rendering");
 
         unsafe {
@@ -473,7 +473,7 @@ impl Renderer {
             .command_manager
             .begin_render_pass(&render_pass_begin_info);
 
-        self.render_objects(view_matrix);
+        self.render_objects(delta_time, view_matrix);
 
         self.boilerplate.command_manager.end_render_pass();
 
