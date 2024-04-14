@@ -17,7 +17,7 @@ pub struct RendererConfig {
 
 impl Config {
     pub fn from_file(path: &str) -> Config {
-        let contents = std::fs::read_to_string(path).expect("Failed to read config file");
+        let contents = std::fs::read_to_string(path).expect("Failed to load config file");
 
         let config_data: Config = toml::from_str(&contents).expect("Failed to parse config file");
 
