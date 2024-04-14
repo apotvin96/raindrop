@@ -179,7 +179,7 @@ impl Swapchain {
         let image_indices = [image_index];
 
         let present_info = vk::PresentInfoKHR::builder()
-            .wait_semaphores(&wait_semaphores)
+            .wait_semaphores(wait_semaphores)
             .swapchains(&swapchains)
             .image_indices(&image_indices)
             .build();

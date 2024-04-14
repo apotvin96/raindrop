@@ -9,6 +9,7 @@
         "editor.inlayHints.enabled": "on"
     },
     "rust-analyzer.linkedProjects": ["./Cargo.toml"],
+    "rust-analyzer.check.command": "clippy",
     "[glsl]": {
         "editor.defaultFormatter": "raczzalan.webgl-glsl-editor"
     }

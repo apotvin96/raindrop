@@ -309,7 +309,7 @@ impl Renderer {
             std::ptr::copy_nonoverlapping(
                 mesh.vertices.as_ptr() as *const u8,
                 memory_handle,
-                (mesh.vertices.len() * size_of::<Vertex>()) as usize,
+                mesh.vertices.len() * size_of::<Vertex>(),
             );
         }
         unsafe { allocator.unmap_memory(&mut allocation) };

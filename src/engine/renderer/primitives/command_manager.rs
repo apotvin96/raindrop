@@ -50,7 +50,7 @@ impl CommandManager {
             .command_buffer_count(1);
 
         let main_command_buffer =
-            match unsafe { device.allocate_command_buffers(&mut command_buffer_allocate_info) } {
+            match unsafe { device.allocate_command_buffers(&command_buffer_allocate_info) } {
                 Ok(buffer) => buffer[0],
                 Err(_) => return Err("Failed to allocate command buffer".to_string()),
             };
@@ -58,7 +58,7 @@ impl CommandManager {
         command_buffer_allocate_info.command_pool = transfer_command_pool;
 
         let transfer_command_buffer =
-            match unsafe { device.allocate_command_buffers(&mut command_buffer_allocate_info) } {
+            match unsafe { device.allocate_command_buffers(&command_buffer_allocate_info) } {
                 Ok(buffer) => buffer[0],
                 Err(_) => return Err("Failed to allocate command buffer".to_string()),
             };
@@ -129,8 +129,8 @@ impl CommandManager {
 
         let submit_info = SubmitInfo::builder()
             .wait_dst_stage_mask(&pipeline_stage_flags)
-            .wait_semaphores(&wait_semaphores)
-            .signal_semaphores(&signal_semaphores)
+            .wait_semaphores(wait_semaphores)
+            .signal_semaphores(signal_semaphores)
             .command_buffers(&submit_command_buffers)
             .build();
 

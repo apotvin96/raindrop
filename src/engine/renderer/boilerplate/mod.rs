@@ -255,7 +255,7 @@ impl Boilerplate {
 
         match Allocator::new(AllocatorCreateInfo::new(instance, device, *physical_device)) {
             Ok(allocator) => Ok(allocator),
-            Err(e) => return Err("Failed to create allocator:".to_owned() + &e.to_string()),
+            Err(e) => Err("Failed to create allocator:".to_owned() + &e.to_string()),
         }
     }
 }

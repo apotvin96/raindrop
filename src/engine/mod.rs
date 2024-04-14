@@ -72,11 +72,12 @@ impl Engine {
     pub fn handle_event(&mut self, event: &winit::event::Event<()>) -> bool {
         trace!("Eventing");
 
-        match event {
-            Event::WindowEvent {
-                event,
-                window_id: _,
-            } => match event {
+        if let Event::WindowEvent {
+            event,
+            window_id: _,
+        } = event
+        {
+            match event {
                 WindowEvent::KeyboardInput {
                     input:
                         winit::event::KeyboardInput {
@@ -107,8 +108,7 @@ impl Engine {
                     return false;
                 }
                 _ => (),
-            },
-            _ => (),
+            }
         }
 
         true
