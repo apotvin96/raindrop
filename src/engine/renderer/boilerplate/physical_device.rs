@@ -7,7 +7,9 @@ pub fn init_physical_device(instance: &ash::Instance) -> Result<PhysicalDevice, 
     let physical_devices = match unsafe { instance.enumerate_physical_devices() } {
         Ok(physical_devices) => physical_devices,
         Err(e) => {
-            return Err("Renderer: Failed to enumerate physical devices: ".to_owned() + &e.to_string())
+            return Err(
+                "Renderer: Failed to enumerate physical devices: ".to_owned() + &e.to_string(),
+            )
         }
     };
 
@@ -36,7 +38,7 @@ pub fn init_physical_device(instance: &ash::Instance) -> Result<PhysicalDevice, 
         }
     }
 
-    warn!("Renderer: Unable to find discrete GPU, using first available that meets requirements");
+    warn!("Renderer: Unable to find discrete GPU, using first available integrated GPU that meets requirements");
 
     Ok(physical_devices[0])
 }

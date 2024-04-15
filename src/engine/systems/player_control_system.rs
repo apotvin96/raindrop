@@ -4,15 +4,21 @@ use bevy_ecs::system::{Query, Res};
 use winit::event::VirtualKeyCode;
 
 pub fn player_control_system(
-    mut query: Query<(&mut Transform, &Player)>,
+    mut query: Query<(&mut Transform, &mut Player)>,
     control_input: Res<ControlInput>,
     time: Res<Time>,
 ) {
-    for (mut transform, player) in &mut query {
+    for (mut transform, mut player) in &mut query {
         let current_rotation = transform.get_rotation();
 
         let mut translation = glm::Vec3::zeros();
         let mut rotation = glm::Vec3::zeros();
+
+        if control_input.pressed(VirtualKeyCode::LShift) {
+            player.set_movement_speed(10.0);
+        } else {
+            player.set_movement_speed(5.0);
+        }
 
         if control_input.pressed(VirtualKeyCode::W) {
             translation.x +=
