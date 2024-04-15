@@ -6,7 +6,7 @@ pub struct Config {
 
 #[derive(serde_derive::Deserialize)]
 pub struct InfoConfig {
-    pub title: String
+    pub name: String
 }
 
 #[derive(serde_derive::Deserialize)]

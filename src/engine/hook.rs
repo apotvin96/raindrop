@@ -9,7 +9,7 @@ pub fn hook(config: Config) {
     let event_loop = EventLoop::new();
 
     let window = WindowBuilder::new()
-        .with_title(config.info.title.clone())
+        .with_title(config.info.name.clone())
         .with_inner_size(winit::dpi::LogicalSize::new(
             config.renderer.window_width,
             config.renderer.window_height,
