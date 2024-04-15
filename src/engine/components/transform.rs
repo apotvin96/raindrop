@@ -97,3 +97,91 @@ impl Transform {
         self.matrix
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_transform_new() {
+        let transform = Transform::new();
+
+        assert_eq!(transform.translation, glm::vec3(0.0, 0.0, 0.0));
+        assert_eq!(transform.rotation, glm::vec3(0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_translation_get() {
+        let mut transform = Transform::new();
+
+        assert_eq!(transform.get_translation(), glm::vec3(0.0, 0.0, 0.0));
+
+        transform.translation.x = 1.0;
+        transform.translation.y = 2.0;
+        transform.translation.z = 3.0;
+
+        assert_eq!(transform.get_translation(), glm::vec3(1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn test_translation_set() {
+        let mut transform = Transform::new();
+
+        transform.set_translation(glm::vec3(1.0, 2.0, 3.0));
+
+        assert_eq!(transform.translation, glm::vec3(1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn test_translation_translate() {
+        let mut transform = Transform::new();
+
+        transform.translate(glm::vec3(1.0, 2.0, 3.0));
+        assert_eq!(transform.translation, glm::vec3(1.0, 2.0, 3.0));
+
+        transform.translate(glm::vec3(1.0, 2.0, 3.0));
+        assert_eq!(transform.translation, glm::vec3(2.0, 4.0, 6.0));
+    }
+
+    #[test]
+    fn test_rotation_get() {
+        let mut transform = Transform::new();
+
+        assert_eq!(transform.get_rotation(), glm::vec3(0.0, 0.0, 0.0));
+
+        transform.rotation.x = 1.0;
+        transform.rotation.y = 2.0;
+        transform.rotation.z = 3.0;
+
+        assert_eq!(transform.get_rotation(), glm::vec3(1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn test_rotation_set() {
+        let mut transform = Transform::new();
+
+        transform.set_rotation(glm::vec3(1.0, 2.0, 3.0));
+
+        assert_eq!(transform.rotation, glm::vec3(1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn test_rotation_rotate() {
+        let mut transform = Transform::new();
+
+        transform.rotate(glm::vec3(1.0, 2.0, 3.0));
+        assert_eq!(transform.rotation, glm::vec3(1.0, 2.0, 3.0));
+
+        transform.rotate(glm::vec3(1.0, 2.0, 3.0));
+        assert_eq!(transform.rotation, glm::vec3(2.0, 4.0, 6.0));
+    }
+
+    #[test]
+    fn test_set_scale() {
+        let mut transform = Transform::new();
+
+        transform.set_scale(glm::vec3(1.0, 2.0, 3.0));
+
+        assert_eq!(transform.scale, glm::vec3(1.0, 2.0, 3.0));
+    }
+}
