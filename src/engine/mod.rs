@@ -5,6 +5,8 @@ mod systems;
 
 pub mod hook;
 
+use std::f32::consts::PI;
+
 use bevy_ecs::{schedule::Schedule, world::World};
 pub use hook::hook;
 
@@ -17,7 +19,7 @@ use winit::{
 use crate::config::Config;
 
 use self::{
-    components::{Camera, Player},
+    components::{Camera, Player, Transform},
     resources::ControlInput,
 };
 
@@ -36,7 +38,7 @@ impl Engine {
         world.insert_non_send_resource(resources::RendererResource::new(config, window));
         world.insert_resource(resources::Time::new());
 
-        world.spawn((Camera::new(), Player::new()));
+        world.spawn((Camera::new((config.renderer.window_width as f32) / (config.renderer.window_height as f32), PI / 2.0, 0.1, 100.0), Transform::new(), Player::new()));
 
         let mut update_schedule = Schedule::default();
         update_schedule.add_systems(systems::player_control_system::player_control_system);

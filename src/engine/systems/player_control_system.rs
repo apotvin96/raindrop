@@ -1,15 +1,15 @@
-use crate::engine::components::{Camera, Player};
+use crate::engine::components::{Player, Transform};
 use crate::engine::resources::{ControlInput, Time};
 use bevy_ecs::system::{Query, Res};
 use winit::event::VirtualKeyCode;
 
 pub fn player_control_system(
-    mut query: Query<(&mut Camera, &Player)>,
+    mut query: Query<(&mut Transform, &Player)>,
     control_input: Res<ControlInput>,
     time: Res<Time>,
 ) {
-    for (mut camera, player) in &mut query {
-        let current_rotation = camera.get_rotation();
+    for (mut transform, player) in &mut query {
+        let current_rotation = transform.get_rotation();
 
         let mut translation = glm::Vec3::zeros();
         let mut rotation = glm::Vec3::zeros();
@@ -44,7 +44,7 @@ pub fn player_control_system(
             rotation.y += player.rotation_speed * time.delta_time;
         }
 
-        camera.translate(translation);
-        camera.rotate(rotation)
+        transform.translate(translation);
+        transform.rotate(rotation)
     }
 }

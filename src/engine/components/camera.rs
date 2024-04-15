@@ -4,80 +4,17 @@ use bevy_ecs::component::Component;
 
 #[derive(Component)]
 pub struct Camera {
-    /**
-        Camera Position
-    */
-    translation: glm::Vec3,
-    /**
-        Camera rotation in radians, z is not used
-    */
-    rotation: glm::Vec3,
-    /**
-       The calculated view matrix of the camera
-    */
-    view_matrix: glm::Mat4,
-    /**
-       If the camera has been moved or rotated, and the view matrix needs to be recalculated
-    */
-    dirty: bool,
+    projection_matrix: glm::Mat4,
 }
 
 impl Camera {
-    pub fn new() -> Camera {
+    pub fn new(aspect: f32, fovy: f32, near: f32, far: f32) -> Camera {
         Camera {
-            translation: glm::Vec3::zeros(),
-            rotation: glm::Vec3::new(0.0, -PI / 2.0, 0.0),
-            view_matrix: glm::Mat4::identity(),
-            dirty: true,
+            projection_matrix: glm::perspective(aspect, fovy, near, far),
         }
     }
 
-    pub fn view_matrix(&mut self) -> glm::Mat4 {
-        if self.dirty {
-            let translation = self.translation;
-            let rotation = self.rotation;
-
-            let center = translation
-                + glm::normalize(&glm::vec3(
-                    rotation.x.cos() * rotation.y.cos(),
-                    rotation.x.sin(),
-                    rotation.x.cos() * rotation.y.sin(),
-                ));
-            let up = glm::vec3(0.0, 1.0, 0.0);
-
-            self.view_matrix = glm::look_at(&translation, &center, &up);
-
-            self.dirty = false;
-        }
-
-        self.view_matrix
-    }
-
-    pub fn get_translation(&self) -> glm::Vec3 {
-        self.translation
-    }
-
-    pub fn set_translation(&mut self, translation: glm::Vec3) {
-        self.translation = translation;
-        self.dirty = true;
-    }
-
-    pub fn translate(&mut self, translation: glm::Vec3) {
-        self.translation += translation;
-        self.dirty = true;
-    }
-
-    pub fn get_rotation(&self) -> glm::Vec3 {
-        self.rotation
-    }
-
-    pub fn set_rotation(&mut self, rotation: glm::Vec3) {
-        self.rotation = rotation;
-        self.dirty = true;
-    }
-
-    pub fn rotate(&mut self, rotation: glm::Vec3) {
-        self.rotation += rotation;
-        self.dirty = true;
+    pub fn matrix(&self) -> glm::Mat4 {
+        self.projection_matrix
     }
 }
