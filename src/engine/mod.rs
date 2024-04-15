@@ -1,4 +1,3 @@
-mod assets;
 mod components;
 mod renderer;
 mod resources;
@@ -33,7 +32,6 @@ impl Engine {
     pub fn new(config: &Config, window: &winit::window::Window) -> Result<Engine, String> {
         let mut world = World::new();
 
-        world.insert_resource(resources::AssetManager::new());
         world.insert_resource(resources::ControlInput::default());
         world.insert_non_send_resource(resources::RendererResource::new(config, window));
         world.insert_resource(resources::Time::new());
