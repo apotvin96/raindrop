@@ -3,7 +3,7 @@ mod debug;
 mod material;
 mod mesh;
 mod primitives;
-mod render_object;
+pub mod renderable;
 
 use std::{cell::RefCell, collections::HashMap, mem::size_of, rc::Rc};
 
@@ -36,7 +36,7 @@ use material::Material;
 use mesh::Mesh;
 use mesh::Vertex;
 
-use render_object::RenderObject;
+pub use renderable::Renderable;
 
 pub struct Renderer {
     boilerplate: Boilerplate,
@@ -48,7 +48,6 @@ pub struct Renderer {
     pipelines: HashMap<String, Rc<RefCell<Pipeline>>>,
     meshes: HashMap<String, Rc<RefCell<Mesh>>>,
     materials: HashMap<String, Rc<RefCell<Material>>>,
-    renderables: Vec<RenderObject>,
     framenumber: u64,
 }
 
@@ -156,8 +155,6 @@ impl Renderer {
             })),
         );
 
-        let renderables = Self::init_scene(&meshes, &materials);
-
         Ok(Renderer {
             boilerplate,
             render_pass,
@@ -165,10 +162,9 @@ impl Renderer {
             fence,
             render_semaphore,
             present_semaphore,
-            pipelines: pipelines,
+            pipelines,
             meshes,
-            materials: HashMap::new(),
-            renderables: renderables,
+            materials,
             framenumber: 0,
         })
     }
@@ -322,75 +318,60 @@ impl Renderer {
         mesh.vertices = vec![];
     }
 
-    fn init_scene(
-        meshes: &HashMap<String, Rc<RefCell<Mesh>>>,
-        materials: &HashMap<String, Rc<RefCell<Material>>>,
-    ) -> Vec<RenderObject> {
-        trace!("Initializing: Scene");
-
-        let monkey = RenderObject {
-            mesh: Rc::clone(meshes.get("monkey").unwrap()),
-            material: Rc::clone(materials.get("defaultmesh").unwrap()),
-            transform: glm::Mat4::identity(),
-        };
-
-        let mut renderables = vec![monkey];
-
-        for x in -20..20 {
-            for y in -20..20 {
-                let translation =
-                    glm::translate(&glm::Mat4::identity(), &glm::vec3(x as f32, 0.0, y as f32));
-                let scale = glm::scale(&glm::Mat4::identity(), &glm::vec3(0.2, 0.2, 0.2));
-
-                let tri = RenderObject {
-                    mesh: Rc::clone(meshes.get("monkey2").unwrap()),
-                    material: Rc::clone(materials.get("defaultmesh").unwrap()),
-                    transform: translation * scale,
-                };
-
-                renderables.push(tri);
-            }
-        }
-
-        renderables
-    }
-
-    fn render_objects(&mut self, delta_time: f32, mut projection_matrix: glm::Mat4, view_matrix: glm::Mat4) {
+    fn render_objects(
+        &mut self,
+        mut projection_matrix: glm::Mat4,
+        view_matrix: glm::Mat4,
+        renderables: &[Renderable],
+    ) {
         // Flip the y axis to match the Vulkan coordinate system
         projection_matrix[(1, 1)] *= -1.0;
 
         let view_proj_mat = projection_matrix * view_matrix;
 
+        let mut mesh_bind_count = 0;
+        let mut material_bind_count = 0;
+
         let mut last_mesh: Option<Rc<RefCell<Mesh>>> = None;
+        let mut last_mesh_id: String = "".to_string();
         let mut last_material: Option<Rc<RefCell<Material>>> = None;
-        for renderable in &self.renderables {
-            if last_mesh != Some(Rc::clone(&renderable.mesh)) {
-                let mesh = renderable.mesh.borrow();
+        let mut last_material_id: String = "".to_string();
+
+        for renderable in renderables {
+            if renderable.mesh != last_mesh_id {
+                let mesh = self.meshes.get(&renderable.mesh).unwrap();
+
                 let offset = 0;
                 self.boilerplate.command_manager.bind_vertex_buffers(
                     0,
-                    &[mesh.vertex_buffer.as_ref().unwrap().buffer],
+                    &[mesh
+                        .as_ref()
+                        .borrow()
+                        .vertex_buffer
+                        .as_ref()
+                        .unwrap()
+                        .buffer],
                     &[offset],
                 );
 
-                last_mesh = Some(Rc::clone(&renderable.mesh));
+                last_mesh = Some(Rc::clone(self.meshes.get(&renderable.mesh).unwrap()));
+                last_mesh_id = renderable.mesh.clone();
+                mesh_bind_count += 1;
             }
 
-            if last_material != Some(Rc::clone(&renderable.material)) {
+            if renderable.material != last_material_id {
+                let material = self.materials.get(&renderable.material).unwrap();
+
                 self.boilerplate
                     .command_manager
-                    .bind_pipeline(&renderable.material.borrow().pipeline.borrow());
+                    .bind_pipeline(&material.borrow().pipeline.borrow());
 
-                last_material = Some(Rc::clone(&renderable.material));
+                last_material = Some(Rc::clone(self.materials.get(&renderable.material).unwrap()));
+                last_material_id = renderable.material.clone();
+                material_bind_count += 1;
             }
 
-            let rotate = glm::rotate(
-                &renderable.transform,
-                self.framenumber as f32 * delta_time,
-                &glm::vec3(0.0, 1.0, 0.0),
-            );
-
-            let mvp = view_proj_mat * rotate;
+            let mvp = view_proj_mat * renderable.matrix;
 
             let push_constants = MeshPushConstants {
                 render_matrix: mvp,
@@ -398,8 +379,9 @@ impl Renderer {
             };
 
             self.boilerplate.command_manager.push_constants(
-                renderable
-                    .material
+                last_material
+                    .as_ref()
+                    .unwrap()
                     .borrow()
                     .pipeline
                     .borrow()
@@ -407,14 +389,29 @@ impl Renderer {
                 push_constants,
             );
 
-            self.boilerplate
-                .command_manager
-                .draw(renderable.mesh.borrow().vertex_count, 1, 0, 0);
+            self.boilerplate.command_manager.draw(
+                last_mesh.as_ref().unwrap().borrow().vertex_count,
+                1,
+                0,
+                0,
+            );
         }
+
+        trace!(
+            "> Rendered {} objects with {} mesh bind(s) and {} material bind(s)",
+            renderables.len(),
+            mesh_bind_count,
+            material_bind_count
+        );
     }
 
-    pub fn render(&mut self, delta_time: f32, projection_matrix: glm::Mat4, view_matrix: glm::Mat4) {
-        trace!("Rendering");
+    pub fn render(
+        &mut self,
+        projection_matrix: glm::Mat4,
+        view_matrix: glm::Mat4,
+        renderables: &[Renderable],
+    ) {
+        trace!("Renderer Rendering");
 
         unsafe {
             self.boilerplate
@@ -464,7 +461,7 @@ impl Renderer {
             .command_manager
             .begin_render_pass(&render_pass_begin_info);
 
-        self.render_objects(delta_time, projection_matrix, view_matrix);
+        self.render_objects(projection_matrix, view_matrix, renderables);
 
         self.boilerplate.command_manager.end_render_pass();
 
@@ -507,7 +504,6 @@ impl Drop for Renderer {
                 .destroy_semaphore(self.present_semaphore, None);
             self.boilerplate.device.destroy_fence(self.fence, None);
 
-            self.renderables = vec![];
             self.materials = HashMap::new();
             self.pipelines = HashMap::new();
 

@@ -1,24 +1,37 @@
 use crate::engine::{
-    components::{Camera, Player, Transform},
-    resources::{RendererResource, Time},
+    components::{Camera, Material, Mesh, Player, Transform},
+    renderer::Renderable,
+    resources::RendererResource,
 };
 use bevy_ecs::{
-    query::With,
-    system::{NonSendMut, Query, Res},
+    query::{With, Without},
+    system::{NonSendMut, Query},
 };
 
 pub fn renderer_system(
-    mut query: Query<(&mut Camera, &mut Transform), With<Player>>,
+    mut player_camera: Query<(&mut Camera, &mut Transform), With<Player>>,
+    mut renderable_objects: Query<(&mut Transform, &Mesh, &Material), Without<Player>>,
     mut renderer: NonSendMut<RendererResource>,
-    time: Res<Time>,
 ) {
-    let (camera, mut transform) = query.iter_mut().next().unwrap();
+    let (camera, mut transform) = player_camera.iter_mut().next().unwrap();
 
-    let view_matrix = transform.matrix();
+    let view_matrix = transform.view_matrix();
     let projection_matrix = camera.matrix();
+
+    let mut renderables: Vec<Renderable> = vec![];
+    for (mut transform, mesh, material) in renderable_objects.iter_mut() {
+        renderables.push(Renderable {
+            mesh: mesh.id.clone(),
+            material: material.id.clone(),
+            matrix: transform.model_matrix(),
+        });
+    }
+
+    renderables
+        .sort_unstable_by_key(|renderable| (renderable.mesh.clone(), renderable.material.clone()));
 
     renderer
         .as_mut()
         .renderer
-        .render(time.delta_time, projection_matrix, view_matrix);
+        .render(projection_matrix, view_matrix, &renderables);
 }

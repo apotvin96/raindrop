@@ -130,7 +130,7 @@ impl Mesh {
                     return Mesh {
                         vertices,
                         vertex_buffer: None,
-                        vertex_count: vertex_count,
+                        vertex_count,
                     };
                 }
             }

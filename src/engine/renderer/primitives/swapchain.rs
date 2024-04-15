@@ -46,10 +46,7 @@ impl Swapchain {
             .image_format(surface.formats.first().unwrap().format)
             .image_color_space(surface.formats.first().unwrap().color_space)
             // Try for 3 images, but otherwise pick something in the range the swapchain allows
-            .min_image_count(
-                3.max(min_image_count)
-                    .min(max_image_count),
-            )
+            .min_image_count(3.max(min_image_count).min(max_image_count))
             .image_array_layers(1)
             .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
             .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
@@ -117,6 +114,9 @@ impl Swapchain {
             .usage(ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
             .build();
 
+        // TODO: This is marked as deprecated in the vk_mem crate, but the replacement is not yet implemented
+        //       GpuOnly is the only option for now that is working for me
+        #[allow(deprecated)]
         let depth_image_allocation_create_info = AllocationCreateInfo {
             usage: vk_mem::MemoryUsage::GpuOnly,
             required_flags: vk::MemoryPropertyFlags::DEVICE_LOCAL,

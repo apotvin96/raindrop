@@ -17,7 +17,7 @@ pub struct CommandManager {
     main_command_pool: vk::CommandPool,
     transfer_command_pool: vk::CommandPool,
     main_command_buffer: vk::CommandBuffer,
-    transfer_command_buffer: vk::CommandBuffer,
+    _transfer_command_buffer: vk::CommandBuffer,
 }
 
 impl CommandManager {
@@ -57,7 +57,7 @@ impl CommandManager {
 
         command_buffer_allocate_info.command_pool = transfer_command_pool;
 
-        let transfer_command_buffer =
+        let _transfer_command_buffer =
             match unsafe { device.allocate_command_buffers(&command_buffer_allocate_info) } {
                 Ok(buffer) => buffer[0],
                 Err(_) => return Err("Failed to allocate command buffer".to_string()),
@@ -69,7 +69,7 @@ impl CommandManager {
             main_command_pool,
             transfer_command_pool,
             main_command_buffer,
-            transfer_command_buffer,
+            _transfer_command_buffer,
         })
     }
 

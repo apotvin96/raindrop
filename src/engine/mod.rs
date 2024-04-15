@@ -19,7 +19,7 @@ use winit::{
 use crate::config::Config;
 
 use self::{
-    components::{Camera, Player, Transform},
+    components::{Camera, Material, Mesh, Player, Transform},
     resources::ControlInput,
 };
 
@@ -35,16 +35,56 @@ impl Engine {
         let mut world = World::new();
 
         world.insert_resource(resources::ControlInput::default());
-        world.insert_non_send_resource(resources::RendererResource::new(config, window));
         world.insert_resource(resources::Time::new());
-
-        world.spawn((Camera::new((config.renderer.window_width as f32) / (config.renderer.window_height as f32), PI / 2.0, 0.1, 100.0), Transform::new(), Player::new()));
+        world.insert_non_send_resource(resources::RendererResource::new(config, window));
 
         let mut update_schedule = Schedule::default();
         update_schedule.add_systems(systems::player_control_system::player_control_system);
+        update_schedule.add_systems(systems::spin_system::spin_system);
 
         let mut render_schedule = Schedule::default();
         render_schedule.add_systems(systems::renderer_system::renderer_system);
+
+        world.spawn((
+            Camera::new(
+                (config.renderer.window_width as f32) / (config.renderer.window_height as f32),
+                PI / 2.0,
+                0.1,
+                100.0,
+            ),
+            Transform::new(),
+            Player::new(),
+        ));
+
+        world.spawn((
+            Transform::new(),
+            Mesh {
+                id: "monkey".to_string(),
+            },
+            Material {
+                id: "defaultmesh".to_string(),
+            },
+        ));
+
+        for x in -10..10 {
+            for y in -10..10 {
+                let mut transform = Transform::new();
+                transform.set_translation(glm::vec3(x as f32 * 2.0, 0.0, y as f32 * 2.0));
+                transform.set_scale(glm::vec3(0.2, 0.2, 0.2));
+
+                let mesh_str = if y % 2 == 0 { "monkey" } else { "monkey2" };
+
+                world.spawn((
+                    transform,
+                    Mesh {
+                        id: mesh_str.to_string(),
+                    },
+                    Material {
+                        id: "defaultmesh".to_string(),
+                    },
+                ));
+            }
+        }
 
         Ok(Engine {
             is_initialized: true,
@@ -55,7 +95,7 @@ impl Engine {
     }
 
     pub fn update(&mut self, delta_time: f64) {
-        trace!("Updating");
+        trace!("Engine Updating");
 
         let mut time = self.world.get_resource_mut::<resources::Time>().unwrap();
         time.delta_time = delta_time as f32;
@@ -64,13 +104,13 @@ impl Engine {
     }
 
     pub fn render(&mut self, _window: &Window) {
-        trace!("Rendering");
+        trace!("Engine Rendering");
 
         self.render_schedule.run(&mut self.world)
     }
 
     pub fn handle_event(&mut self, event: &winit::event::Event<()>) -> bool {
-        trace!("Eventing");
+        trace!("Engine Eventing");
 
         if let Event::WindowEvent {
             event,

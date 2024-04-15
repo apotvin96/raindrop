@@ -6,6 +6,8 @@ pub struct Transform {
     translation: glm::Vec3,
     /// 3D Rotation, in radians
     rotation: glm::Vec3,
+    /// 3D Scale
+    scale: glm::Vec3,
     /// Combined matrix of translation and rotation
     matrix: glm::Mat4,
     /// Whether the matrix needs to be recalculated
@@ -17,6 +19,7 @@ impl Transform {
         Transform {
             translation: glm::Vec3::zeros(),
             rotation: glm::Vec3::zeros(),
+            scale: glm::vec3(1.0, 1.0, 1.0),
             matrix: glm::Mat4::identity(),
             dirty: true,
         }
@@ -50,7 +53,30 @@ impl Transform {
         self.dirty = true;
     }
 
-    pub fn matrix(&mut self) -> glm::Mat4 {
+    pub fn set_scale(&mut self, scale: glm::Vec3) {
+        self.scale = scale;
+        self.dirty = true;
+    }
+
+    pub fn model_matrix(&mut self) -> glm::Mat4 {
+        if self.dirty {
+            let identity = glm::Mat4::identity();
+
+            let translation = glm::translate(&identity, &self.translation);
+            let rotation = glm::rotate_x(&identity, self.rotation.x)
+                * glm::rotate_y(&identity, self.rotation.y)
+                * glm::rotate_z(&identity, self.rotation.z);
+            let scale = glm::scale(&identity, &self.scale);
+
+            self.matrix = translation * rotation * scale;
+
+            self.dirty = false;
+        }
+
+        self.matrix
+    }
+
+    pub fn view_matrix(&mut self) -> glm::Mat4 {
         if self.dirty {
             let translation = self.translation;
             let rotation = self.rotation;

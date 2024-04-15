@@ -31,7 +31,7 @@ pub struct Boilerplate {
 }
 
 impl Boilerplate {
-    pub fn new(config: &Config, window: &winit::window::Window) -> Result<Boilerplate, String> {
+    pub fn new(_config: &Config, window: &winit::window::Window) -> Result<Boilerplate, String> {
         let entry = Entry::linked();
 
         let (instance, debug_loader, debug_messenger) = instance::init_instance(&entry, window)?;
