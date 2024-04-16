@@ -3,9 +3,16 @@ use std::f32::consts::PI;
 use bevy_ecs::{schedule::Schedule, world::World};
 use config::Config;
 use log::trace;
-use winit::{event::{Event, VirtualKeyCode, WindowEvent}, window::Window};
+use winit::{
+    event::{Event, VirtualKeyCode, WindowEvent},
+    window::Window,
+};
 
-use crate::{components::{Camera, Material, Mesh, Player, Transform}, resources::{self, ControlInput}, systems};
+use crate::{
+    components::{Camera, Material, Mesh, Player, Transform},
+    resources::{self, ControlInput},
+    systems,
+};
 
 pub struct Engine {
     is_initialized: bool,
@@ -20,9 +27,7 @@ impl Engine {
 
         world.insert_resource(resources::ControlInput::default());
         world.insert_resource(resources::Time::new());
-        if !cfg!(test) {
-            world.insert_non_send_resource(resources::RendererResource::new(config, window));
-        }
+        world.insert_non_send_resource(resources::RendererResource::new(config, window));
 
         let mut update_schedule = Schedule::default();
         update_schedule.add_systems(systems::player_control_system::player_control_system);
@@ -30,9 +35,7 @@ impl Engine {
 
         let mut render_schedule = Schedule::default();
 
-        if !cfg!(test) {
-            render_schedule.add_systems(systems::renderer_system::renderer_system);
-        }
+        render_schedule.add_systems(systems::renderer_system::renderer_system);
 
         world.spawn((
             Camera::new(
