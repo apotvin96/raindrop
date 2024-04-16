@@ -1,3 +1,9 @@
+extern crate log;
+extern crate nalgebra_glm as glm;
+
+#[macro_use]
+extern crate lazy_static;
+
 mod boilerplate;
 mod debug;
 mod material;
@@ -20,10 +26,9 @@ use log::trace;
 
 use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
-use crate::{
-    config::Config,
-    engine::renderer::{mesh::MeshPushConstants, primitives::AllocatedBuffer},
-};
+use config::Config;
+
+use crate::{mesh::MeshPushConstants, primitives::AllocatedBuffer};
 
 use boilerplate::Boilerplate;
 

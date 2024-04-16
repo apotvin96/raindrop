@@ -1,5 +1,5 @@
-use crate::engine::components::{Mesh, Transform};
-use crate::engine::resources::Time;
+use crate::components::{Mesh, Transform};
+use crate::resources::Time;
 use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, Res};
 

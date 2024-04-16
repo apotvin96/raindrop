@@ -8,7 +8,7 @@ use raw_window_handle::HasRawDisplayHandle;
 
 use std::ops::BitOrAssign;
 
-use crate::engine::renderer::debug;
+use crate::debug;
 
 pub fn init_instance(
     entry: &ash::Entry,

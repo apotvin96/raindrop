@@ -1,12 +1,13 @@
-use crate::engine::{
+use crate::{
     components::{Camera, Material, Mesh, Player, Transform},
-    renderer::Renderable,
     resources::RendererResource,
 };
 use bevy_ecs::{
     query::{With, Without},
     system::{NonSendMut, Query},
 };
+
+use renderer::Renderable;
 
 pub fn renderer_system(
     mut player_camera: Query<(&mut Camera, &mut Transform), With<Player>>,

@@ -1,5 +1,5 @@
-use crate::engine::components::{Player, Transform};
-use crate::engine::resources::{ControlInput, Time};
+use crate::components::{Player, Transform};
+use crate::resources::{ControlInput, Time};
 use bevy_ecs::system::{Query, Res};
 use winit::event::VirtualKeyCode;
 

@@ -13,7 +13,7 @@ use std::mem::ManuallyDrop;
 
 use vk_mem::Allocator;
 
-use crate::config::Config;
+use config::Config;
 
 use super::primitives::{CommandManager, Queue, Surface, Swapchain};
 

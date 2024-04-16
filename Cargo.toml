@@ -1,28 +1,32 @@
-[package]
-name = "vkguide_rust"
-version = "0.0.1"
-edition = "2021"
+# [package]
+# name = "vkguide_rust"
+# version = "0.0.1"
+# edition = "2021"
 
-[dependencies]
-ash = { version = "0.37.3", features = ["linked"] }
-ash-window = "0.12.0"
-bevy_ecs = { version = "0.13.2", features = [ "multi-threaded", "trace"] }
-bincode = "1.3.3"
-game-loop = { version = "0.10.2", features = ["winit"] }
-gltf = "1.4.0"
-lazy_static = "1.4.0"
-log = "0.4.20"
-memoffset = "0.9.0"
-nalgebra = { version = "0.32.3", features = ["serde-serialize"] }
-nalgebra-glm = { version = "0.18.0", features = ["serde-serialize"] }
-presser = "0.3.1"
-rand = "0.8.5"
-raw-window-handle = "0.5"
-serde = "1.0.196"
-serde_derive = "1.0.196"
-shaderc = "0.8.3"
-simplelog = "0.12.1"
-spirv_cross = "0.23.1"
-toml = "0.8.9"
-vk-mem = "0.3.0"
-winit = "0.28"
+# [dependencies]
+# ash = { version = "0.37.3", features = ["linked"] }
+# ash-window = "0.12.0"
+# bevy_ecs = { version = "0.13.2", features = [ "multi-threaded", "trace"] }
+# bincode = "1.3.3"
+# game-loop = { version = "0.10.2", features = ["winit"] }
+# gltf = "1.4.0"
+# lazy_static = "1.4.0"
+# log = "0.4.20"
+# memoffset = "0.9.0"
+# nalgebra = { version = "0.32.3", features = ["serde-serialize"] }
+# nalgebra-glm = { version = "0.18.0", features = ["serde-serialize"] }
+# presser = "0.3.1"
+# rand = "0.8.5"
+# raw-window-handle = "0.5"
+# serde = "1.0.196"
+# serde_derive = "1.0.196"
+# shaderc = "0.8.3"
+# simplelog = "0.12.1"
+# spirv_cross = "0.23.1"
+# toml = "0.8.9"
+# vk-mem = "0.3.0"
+# winit = "0.28"
+
+[workspace]
+resolver = "2"
+members = ["config", "engine", "renderer"]

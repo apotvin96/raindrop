@@ -14,7 +14,7 @@ use ash::{
     Device,
 };
 
-use crate::engine::renderer::mesh::{MeshPushConstants, VertexInputDescription};
+use crate::mesh::{MeshPushConstants, VertexInputDescription};
 
 use super::Shader;
 
