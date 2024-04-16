@@ -34,7 +34,6 @@ impl Engine {
         update_schedule.add_systems(systems::spin_system::spin_system);
 
         let mut render_schedule = Schedule::default();
-
         render_schedule.add_systems(systems::renderer_system::renderer_system);
 
         world.spawn((
