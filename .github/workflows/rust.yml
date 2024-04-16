@@ -16,7 +16,5 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --workspace --exclude renderer
     - name: Run tests
-      run: cargo test --workspace --exclude renderer 
+      run: cargo test --workspace
