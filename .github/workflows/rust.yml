@@ -16,8 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Install Vulkan SDK
-      uses: humbletim/install-vulkan-sdk@v1.1.1
+    - name: Setup Vulkan SDK - edvn0          
+      uses: edvn0/setup-vulkan-sdk@v1.3.0
       with:
        version: 1.2.198.1
        cache: true
