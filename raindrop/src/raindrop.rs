@@ -48,6 +48,8 @@ impl Raindrop {
         }
     }
 
+    /// Add a system to be run for the engine
+    /// Specify the schedule type for the schedule to be added to
     pub fn add_systems<M>(
         &mut self,
         schedule_type: ScheduleType,
@@ -62,7 +64,7 @@ impl Raindrop {
          * Ok so this is fucked but lets explain.
          * We need our app and its data to be owned by the game_loop
          * And, since this is Rust, we have to ensure ownership is safe
-         * SO
+         * So,
          *     1. We take our existing app, and do a mem::replace over it
          *     2. mem::replace replaces self with a new empty Raindrop instance
          *     3. The replaced objec is returned by mem replace, effectively giving us a now unowned
