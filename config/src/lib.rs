@@ -1,15 +1,15 @@
-#[derive(serde_derive::Deserialize)]
+#[derive(serde_derive::Deserialize, Clone)]
 pub struct Config {
     pub info: InfoConfig,
     pub renderer: RendererConfig,
 }
 
-#[derive(serde_derive::Deserialize)]
+#[derive(serde_derive::Deserialize, Clone)]
 pub struct InfoConfig {
-    pub name: String
+    pub name: String,
 }
 
-#[derive(serde_derive::Deserialize)]
+#[derive(serde_derive::Deserialize, Clone)]
 pub struct RendererConfig {
     pub window_width: u32,
     pub window_height: u32,
@@ -22,5 +22,19 @@ impl Config {
         let config_data: Config = toml::from_str(&contents).expect("Failed to parse config file");
 
         config_data
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            info: InfoConfig {
+                name: "Raindrop Engine".to_string(),
+            },
+            renderer: RendererConfig {
+                window_width: 800,
+                window_height: 600,
+            },
+        }
     }
 }

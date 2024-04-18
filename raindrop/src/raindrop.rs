@@ -1,12 +1,12 @@
-use std::borrow::BorrowMut;
-
+use bevy_ecs::schedule::IntoSystemConfigs;
 use config::Config;
+use logger::init_logging;
 use winit::{
     event_loop::EventLoop,
     window::{Window, WindowBuilder},
 };
 
-use crate::engine::Engine;
+use crate::engine::{Engine, ScheduleType};
 
 use game_loop::game_loop;
 
@@ -25,7 +25,9 @@ impl Raindrop {
         }
     }
 
-    pub fn new(config: Config) -> Raindrop {
+    pub fn new(config: &Config) -> Raindrop {
+        init_logging("engine.log");
+
         let event_loop = EventLoop::new();
 
         let window = WindowBuilder::new()
@@ -37,7 +39,7 @@ impl Raindrop {
             .build(&event_loop)
             .unwrap();
 
-        let engine = Engine::new(&config, &window).expect("Failed to init engine");
+        let engine = Engine::new(config, &window).expect("Failed to init engine");
 
         Raindrop {
             event_loop: Some(event_loop),
@@ -46,10 +48,15 @@ impl Raindrop {
         }
     }
 
-    /**
-     * Run the game loop
-     *
-     */
+    pub fn add_systems<M>(
+        &mut self,
+        schedule_type: ScheduleType,
+        systems: impl IntoSystemConfigs<M>,
+    ) {
+        self.engine.as_mut().unwrap().add_systems(schedule_type, systems);
+    }
+
+    /// Run the game loop
     pub fn run(&mut self) {
         /*
          * Ok so this is fucked but lets explain.
@@ -61,16 +68,22 @@ impl Raindrop {
          *     3. The replaced objec is returned by mem replace, effectively giving us a now unowned
          *        instance of Raindrop (owned by the new app var)
          *     4. We hand it now to the game_loop so it can own it
-         * 
+         *
          * I hate this but this is a very close replication of what Bevy does, and they are better than
          * me so im gonna trust them.
          */
         let app = std::mem::replace(self, Raindrop::empty());
 
+        let event_loop = app.event_loop.unwrap();
+        let window = app.window.unwrap();
+        let mut engine = app.engine.unwrap();
+
+        engine.startup();
+
         game_loop(
-            app.event_loop.unwrap(),
-            app.window.unwrap(),
-            app.engine.unwrap(),
+            event_loop,
+            window,
+            engine,
             60,
             0.1,
             |g| {

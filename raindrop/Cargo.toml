@@ -1,16 +1,16 @@
 [package]
-name = "engine"
+name = "raindrop"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 config = { path = "../config" }
+logger = { path = "../logger" }
 renderer = { path = "../renderer" }
 
-bevy_ecs = { version = "0.13.2", features = [ "multi-threaded", "trace"] }
+bevy_ecs = { version = "0.13.2", features = ["multi-threaded", "trace"] }
 game-loop = { version = "0.10.2", features = ["winit"] }
 log = "0.4.20"
 nalgebra = { version = "0.32.3", features = ["serde-serialize"] }
 nalgebra-glm = { version = "0.18.0", features = ["serde-serialize"] }
-simplelog = "0.12.1"
 winit = "0.28"

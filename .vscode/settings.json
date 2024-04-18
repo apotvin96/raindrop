@@ -12,5 +12,15 @@
     "rust-analyzer.check.command": "clippy",
     "[glsl]": {
         "editor.defaultFormatter": "raczzalan.webgl-glsl-editor"
+    },
+    "actionButtons": {
+        "defaultColor": "#ff0034",
+        "commands": [
+            {
+                "name": "Example 1",
+                "color": "green",
+                "command": "cd examples/example1; cargo run; cd ../.."
+            }
+        ]
     }
 }

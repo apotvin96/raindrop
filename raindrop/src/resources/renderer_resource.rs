@@ -9,8 +9,8 @@ pub struct RendererResource {
 }
 
 impl RendererResource {
-    pub fn new(config: &Config, window: &Window) -> Self {
-        let renderer  = match Renderer::new(config, window) {
+    pub fn new(config: Config, window: &Window) -> Self {
+        let renderer  = match Renderer::new(&config, window) {
             Ok(renderer) => renderer,
             Err(e) => panic!("Failed to init renderer: {}", e),
         };

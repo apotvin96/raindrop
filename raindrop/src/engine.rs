@@ -1,6 +1,7 @@
-use std::f32::consts::PI;
-
-use bevy_ecs::{schedule::Schedule, world::World};
+use bevy_ecs::{
+    schedule::{IntoSystemConfigs, Schedule},
+    world::World,
+};
 use config::Config;
 use log::trace;
 use winit::{
@@ -9,80 +10,63 @@ use winit::{
 };
 
 use crate::{
-    components::{Camera, Material, Mesh, Player, Transform},
-    resources::{self, ControlInput},
+    resources::{self, ControlInput, GameConfig},
     systems,
 };
 
+pub enum ScheduleType {
+    Startup,
+    Update,
+    Render,
+}
+
 pub struct Engine {
-    is_initialized: bool,
     world: World,
+    startup_schedule: Schedule,
     update_schedule: Schedule,
     render_schedule: Schedule,
 }
 
 impl Engine {
     pub fn new(config: &Config, window: &winit::window::Window) -> Result<Engine, String> {
-        let mut world = World::new();
+        let world = Engine::default_world(config, window);
 
-        world.insert_resource(resources::ControlInput::default());
-        world.insert_resource(resources::Time::new());
-        world.insert_non_send_resource(resources::RendererResource::new(config, window));
+        let startup_schedule = Engine::default_startup_schedule();
+        let update_schedule = Engine::default_update_schedule();
+        let render_schedule = Engine::default_render_schedule();
 
-        let mut update_schedule = Schedule::default();
-        update_schedule.add_systems(systems::player_control_system::player_control_system);
-        update_schedule.add_systems(systems::spin_system::spin_system);
-
-        let mut render_schedule = Schedule::default();
-        render_schedule.add_systems(systems::renderer_system::renderer_system);
-
-        world.spawn((
-            Camera::new(
-                (config.renderer.window_width as f32) / (config.renderer.window_height as f32),
-                PI / 2.0,
-                0.1,
-                100.0,
-            ),
-            Transform::new(),
-            Player::new(),
-        ));
-
-        world.spawn((
-            Transform::new(),
-            Mesh {
-                id: "monkey".to_string(),
-            },
-            Material {
-                id: "defaultmesh".to_string(),
-            },
-        ));
-
-        for x in -10..10 {
-            for y in -10..10 {
-                let mut transform = Transform::new();
-                transform.set_translation(glm::vec3(x as f32 * 2.0, 0.0, y as f32 * 2.0));
-                transform.set_scale(glm::vec3(0.2, 0.2, 0.2));
-
-                let mesh_str = if y % 2 == 0 { "monkey" } else { "monkey2" };
-
-                world.spawn((
-                    transform,
-                    Mesh {
-                        id: mesh_str.to_string(),
-                    },
-                    Material {
-                        id: "defaultmesh".to_string(),
-                    },
-                ));
-            }
-        }
-
-        Ok(Engine {
-            is_initialized: true,
+        let engine = Engine {
             world,
+            startup_schedule,
             update_schedule,
             render_schedule,
-        })
+        };
+
+        Ok(engine)
+    }
+
+    pub fn add_systems<M>(
+        &mut self,
+        schedule_type: ScheduleType,
+        systems: impl IntoSystemConfigs<M>,
+    ) {
+        match schedule_type {
+            ScheduleType::Startup => {
+                self.startup_schedule.add_systems(systems);
+            }
+            ScheduleType::Update => {
+                self.update_schedule.add_systems(systems);
+            }
+            ScheduleType::Render => {
+                self.render_schedule.add_systems(systems);
+            }
+        }
+    }
+
+    pub fn startup(&mut self) {
+        trace!("Engine Starting");
+
+        self.startup_schedule.run(&mut self.world);
     }
 
     pub fn update(&mut self, delta_time: f64) {
@@ -145,15 +129,45 @@ impl Engine {
         true
     }
 
-    pub fn cleanup(&self) {
+    fn cleanup(&self) {
         trace!("Cleaning");
+    }
+
+    fn default_world(config: &Config, window: &Window) -> World {
+        let mut world = World::new();
+
+        world.insert_resource(GameConfig::from(config.clone()));
+        world.insert_resource(resources::ControlInput::default());
+        world.insert_resource(resources::Time::new());
+        world.insert_non_send_resource(resources::RendererResource::new(config.clone(), window));
+
+        world
+    }
+
+    fn default_startup_schedule() -> Schedule {
+        Schedule::default()
+    }
+
+    fn default_update_schedule() -> Schedule {
+        let mut schedule = Schedule::default();
+
+        schedule.add_systems(systems::player_control_system::player_control_system);
+        schedule.add_systems(systems::spin_system::spin_system);
+
+        schedule
+    }
+
+    fn default_render_schedule() -> Schedule {
+        let mut schedule = Schedule::default();
+
+        schedule.add_systems(systems::renderer_system::renderer_system);
+
+        schedule
     }
 }
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        if self.is_initialized {
-            self.cleanup();
-        }
+        self.cleanup();
     }
 }
