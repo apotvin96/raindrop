@@ -17,7 +17,7 @@ pub fn init_instance(
     trace!("Initializing Vk Instance");
 
     let engine_name = std::ffi::CString::new("Vulkan").unwrap();
-    let application_name = std::ffi::CString::new("VKGuide App").unwrap();
+    let application_name = std::ffi::CString::new("Raindrop App").unwrap();
 
     let application_info = vk::ApplicationInfo::builder()
         .api_version(vk::make_api_version(0, 1, 2, 0))
