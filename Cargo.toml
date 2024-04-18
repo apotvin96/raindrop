@@ -1,3 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["config", "engine", "renderer"]
+members = ["config", "engine", "examples/example1", "renderer"]
+
+[profile.dev.package."*"]
+opt-level = 3
