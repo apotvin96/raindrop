@@ -1,6 +1,14 @@
 [workspace]
 resolver = "2"
-members = ["config", "raindrop", "renderer", "examples/*", "logger"]
+members = [
+    "asset_manager",
+    "config",
+    "logger",
+    "raindrop",
+    "renderer",
+    
+    "examples/*",
+]
 
 [profile.dev.package."*"]
 opt-level = 3

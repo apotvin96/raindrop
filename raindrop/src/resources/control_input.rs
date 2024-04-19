@@ -42,14 +42,14 @@ mod tests {
         let mut control_input = ControlInput::default();
 
         control_input.set_key_up(VirtualKeyCode::W);
-        assert_eq!(control_input.pressed(VirtualKeyCode::W), false);
+        assert!(!control_input.pressed(VirtualKeyCode::W));
     }
 
     #[test]
     fn test_control_input_false_if_not_present() {
         let control_input = ControlInput::default();
 
-        assert_eq!(control_input.pressed(VirtualKeyCode::W), false);
+        assert!(!control_input.pressed(VirtualKeyCode::W));
     }
 
     #[test]
@@ -57,17 +57,17 @@ mod tests {
         let mut control_input = ControlInput::default();
 
         control_input.set_key_down(VirtualKeyCode::W);
-        assert_eq!(control_input.pressed(VirtualKeyCode::W), true);
+        assert!(control_input.pressed(VirtualKeyCode::W));
     }
-    
+
     #[test]
     fn test_control_input_updates_key() {
         let mut control_input = ControlInput::default();
 
         control_input.set_key_down(VirtualKeyCode::W);
-        assert_eq!(control_input.pressed(VirtualKeyCode::W), true);
+        assert!(control_input.pressed(VirtualKeyCode::W));
 
         control_input.set_key_up(VirtualKeyCode::W);
-        assert_eq!(control_input.pressed(VirtualKeyCode::W), false);
+        assert!(!control_input.pressed(VirtualKeyCode::W));
     }
 }
