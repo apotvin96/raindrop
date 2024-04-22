@@ -1,4 +1,3 @@
-use asset_manager::AssetManager;
 use bevy_ecs::{
     schedule::{IntoSystemConfigs, Schedule},
     world::World,
@@ -11,8 +10,8 @@ use winit::{
 };
 
 use crate::{
-    resources::{self, AssetManagerResource, ControlInput, GameConfig},
-    systems,
+    resources::{AssetManagerResource, ControlInput, GameConfig, RendererResource},
+    systems, Time,
 };
 
 pub enum ScheduleType {
@@ -73,7 +72,7 @@ impl Engine {
     pub fn update(&mut self, delta_time: f64) {
         trace!("Engine Updating");
 
-        let mut time = self.world.get_resource_mut::<resources::Time>().unwrap();
+        let mut time = self.world.get_resource_mut::<Time>().unwrap();
         time.delta_time = delta_time as f32;
 
         self.update_schedule.run(&mut self.world);
@@ -139,9 +138,9 @@ impl Engine {
 
         world.insert_resource(AssetManagerResource::default());
         world.insert_resource(GameConfig::from(config.clone()));
-        world.insert_resource(resources::ControlInput::default());
-        world.insert_resource(resources::Time::new());
-        world.insert_non_send_resource(resources::RendererResource::new(config.clone(), window));
+        world.insert_resource(ControlInput::default());
+        world.insert_resource(Time::new());
+        world.insert_non_send_resource(RendererResource::new(config.clone(), window));
 
         world
     }
