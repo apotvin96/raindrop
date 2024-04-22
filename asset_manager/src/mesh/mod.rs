@@ -20,7 +20,7 @@ impl Mesh {
 
         let import = gltf::import(&self.asset_info.id);
 
-        let (gltf, _, _) = import.unwrap();
+        let (gltf, buffers, _) = import.unwrap();
 
         for scene in gltf.scenes() {
             for node in scene.nodes() {
