@@ -1,10 +1,7 @@
 mod mesh_gpu_info;
 mod vertex;
 
-use std::{thread, time};
-
 use gltf::mesh::Mode;
-use log::warn;
 pub use mesh_gpu_info::MeshGpuInfo;
 pub use vertex::Vertex;
 
@@ -23,7 +20,7 @@ impl Mesh {
 
         let import = gltf::import(&self.asset_info.id);
 
-        let (gltf, buffers, _) = import.unwrap();
+        let (gltf, _, _) = import.unwrap();
 
         for scene in gltf.scenes() {
             for node in scene.nodes() {
