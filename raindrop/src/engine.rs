@@ -10,10 +10,7 @@ use winit::{
 };
 
 use crate::{
-    components::mesh,
-    resources::{
-        asset_manager_resource, AssetManagerResource, ControlInput, GameConfig, RendererResource,
-    },
+    resources::{AssetManagerResource, ControlInput, GameConfig, RendererResource},
     systems, Time,
 };
 
