@@ -1,6 +1,8 @@
 mod mesh_gpu_info;
 mod vertex;
 
+use std::primitive;
+
 use gltf::mesh::Mode;
 pub use mesh_gpu_info::MeshGpuInfo;
 pub use vertex::Vertex;
@@ -31,40 +33,44 @@ impl Mesh {
                         continue;
                     }
 
-                    let mut positions: Vec<glm::Vec3> = vec![];
-                    let mut normals: Vec<glm::Vec3> = vec![];
-
-                    let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
-
-                    if let Some(iter) = reader.read_positions() {
-                        for position in iter {
-                            positions.push(glm::vec3(position[0], position[1], position[2]));
-                        }
-                    }
-                    if let Some(iter) = reader.read_normals() {
-                        for normal in iter {
-                            normals.push(glm::vec3(normal[0], normal[1], normal[2]));
-                        }
-                    }
-
-                    let mut vertices: Vec<Vertex> = vec![];
-
-                    if let Some(indices) = reader.read_indices() {
-                        for index in indices.into_u32() {
-                            vertices.push(Vertex {
-                                position: positions[index as usize],
-                                normal: normals[index as usize],
-                                color: glm::vec3(1.0, 0.0, 0.0),
-                            })
-                        }
-                    }
-
-                    self.vertex_count = vertices.len() as u32;
-                    self.vertices = vertices;
+                    self.vertices = Mesh::get_triangular_primitive_vertices(&primitive, &buffers);
+                    self.vertex_count = self.vertices.len() as u32;
 
                     return;
                 }
             }
         }
+    }
+
+    fn get_triangular_primitive_vertices(primitive: &gltf::Primitive, buffers: &[gltf::buffer::Data]) -> Vec<Vertex> {
+        let mut positions: Vec<glm::Vec3> = vec![];
+        let mut normals: Vec<glm::Vec3> = vec![];
+
+        let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+
+        if let Some(iter) = reader.read_positions() {
+            for position in iter {
+                positions.push(glm::vec3(position[0], position[1], position[2]));
+            }
+        }
+        if let Some(iter) = reader.read_normals() {
+            for normal in iter {
+                normals.push(glm::vec3(normal[0], normal[1], normal[2]));
+            }
+        }
+
+        let mut vertices: Vec<Vertex> = vec![];
+
+        if let Some(indices) = reader.read_indices() {
+            for index in indices.into_u32() {
+                vertices.push(Vertex {
+                    position: positions[index as usize],
+                    normal: normals[index as usize],
+                    color: glm::vec3(1.0, 0.0, 0.0),
+                })
+            }
+        }
+
+        vertices
     }
 }
