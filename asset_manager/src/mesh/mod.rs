@@ -61,6 +61,8 @@ impl Mesh {
 
                     self.vertex_count = vertices.len() as u32;
                     self.vertices = vertices;
+
+                    return;
                 }
             }
         }
