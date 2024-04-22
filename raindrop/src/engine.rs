@@ -1,3 +1,4 @@
+use asset_manager::AssetManager;
 use bevy_ecs::{
     schedule::{IntoSystemConfigs, Schedule},
     world::World,
@@ -10,7 +11,7 @@ use winit::{
 };
 
 use crate::{
-    resources::{self, ControlInput, GameConfig},
+    resources::{self, AssetManagerResource, ControlInput, GameConfig},
     systems,
 };
 
@@ -136,6 +137,7 @@ impl Engine {
     fn default_world(config: &Config, window: &Window) -> World {
         let mut world = World::new();
 
+        world.insert_resource(AssetManagerResource::default());
         world.insert_resource(GameConfig::from(config.clone()));
         world.insert_resource(resources::ControlInput::default());
         world.insert_resource(resources::Time::new());

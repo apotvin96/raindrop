@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+asset_manager = { path = "../asset_manager" }
 config = { path = "../config" }
 logger = { path = "../logger" }
 renderer = { path = "../renderer" }
