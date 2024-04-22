@@ -1,8 +1,6 @@
 mod mesh_gpu_info;
 mod vertex;
 
-use std::primitive;
-
 use gltf::mesh::Mode;
 pub use mesh_gpu_info::MeshGpuInfo;
 pub use vertex::Vertex;
