@@ -109,14 +109,14 @@ impl Renderer {
         };
 
         let fence_create_info =
-            vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
+            vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
 
         let fence = match unsafe { boilerplate.device.create_fence(&fence_create_info, None) } {
             Ok(fence) => fence,
             Err(e) => return Err("Failed to create fence: ".to_owned() + &e.to_string()),
         };
 
-        let semaphore_create_info = vk::SemaphoreCreateInfo::builder().build();
+        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
         let render_semaphore = match unsafe {
             boilerplate
@@ -177,7 +177,7 @@ impl Renderer {
     fn init_render_pass(device: &Device, swapchain: &Swapchain) -> Result<RenderPass, String> {
         trace!("Initializing: Vk RenderPass");
 
-        let attachment_description = AttachmentDescription::builder()
+        let attachment_description = AttachmentDescription::default()
             .format(swapchain.image_format)
             .samples(SampleCountFlags::TYPE_1)
             .load_op(AttachmentLoadOp::CLEAR)
@@ -185,15 +185,13 @@ impl Renderer {
             .stencil_load_op(AttachmentLoadOp::DONT_CARE)
             .stencil_store_op(AttachmentStoreOp::DONT_CARE)
             .initial_layout(ImageLayout::UNDEFINED)
-            .final_layout(ImageLayout::PRESENT_SRC_KHR)
-            .build();
+            .final_layout(ImageLayout::PRESENT_SRC_KHR);
 
-        let attachment_references = [vk::AttachmentReference::builder()
+        let attachment_references = [vk::AttachmentReference::default()
             .attachment(0)
-            .layout(ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            .build()];
+            .layout(ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
 
-        let depth_attachment_description = AttachmentDescription::builder()
+        let depth_attachment_description = AttachmentDescription::default()
             .format(vk::Format::D32_SFLOAT)
             .samples(SampleCountFlags::TYPE_1)
             .load_op(AttachmentLoadOp::CLEAR)
@@ -201,30 +199,26 @@ impl Renderer {
             .stencil_load_op(AttachmentLoadOp::CLEAR)
             .stencil_store_op(AttachmentStoreOp::DONT_CARE)
             .initial_layout(ImageLayout::UNDEFINED)
-            .final_layout(ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-            .build();
+            .final_layout(ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-        let depth_attachment_references = vk::AttachmentReference::builder()
+        let depth_attachment_references = vk::AttachmentReference::default()
             .attachment(1)
-            .layout(ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-            .build();
+            .layout(ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-        let subpass_descriptions = [SubpassDescription::builder()
+        let subpass_descriptions = [SubpassDescription::default()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&attachment_references)
-            .depth_stencil_attachment(&depth_attachment_references)
-            .build()];
+            .depth_stencil_attachment(&depth_attachment_references)];
 
-        let color_dependency = SubpassDependency::builder()
+        let color_dependency = SubpassDependency::default()
             .src_subpass(SUBPASS_EXTERNAL)
             .dst_subpass(0)
             .src_stage_mask(PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
             .src_access_mask(AccessFlags::NONE)
             .dst_stage_mask(PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .dst_access_mask(AccessFlags::COLOR_ATTACHMENT_WRITE)
-            .build();
+            .dst_access_mask(AccessFlags::COLOR_ATTACHMENT_WRITE);
 
-        let depth_dependency = SubpassDependency::builder()
+        let depth_dependency = SubpassDependency::default()
             .src_subpass(SUBPASS_EXTERNAL)
             .dst_subpass(0)
             .src_stage_mask(
@@ -234,17 +228,15 @@ impl Renderer {
             .dst_stage_mask(
                 PipelineStageFlags::EARLY_FRAGMENT_TESTS | PipelineStageFlags::LATE_FRAGMENT_TESTS,
             )
-            .dst_access_mask(AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
-            .build();
+            .dst_access_mask(AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE);
 
         let attachments = [attachment_description, depth_attachment_description];
         let dependencies = [color_dependency, depth_dependency];
 
-        let render_pass_create_info = RenderPassCreateInfo::builder()
+        let render_pass_create_info = RenderPassCreateInfo::default()
             .attachments(&attachments)
             .subpasses(&subpass_descriptions)
-            .dependencies(&dependencies)
-            .build();
+            .dependencies(&dependencies);
 
         match unsafe { device.create_render_pass(&render_pass_create_info, None) } {
             Ok(render_pass) => Ok(render_pass),
@@ -264,13 +256,12 @@ impl Renderer {
         for image_view in &swapchain.image_views {
             let attachments = [*image_view, swapchain.depth_image_view];
 
-            let framebuffer_create_info = FramebufferCreateInfo::builder()
+            let framebuffer_create_info = FramebufferCreateInfo::default()
                 .render_pass(*render_pass)
                 .width(swapchain.extent.width)
                 .height(swapchain.extent.height)
                 .layers(1)
-                .attachments(&attachments)
-                .build();
+                .attachments(&attachments);
 
             let framebuffer = match unsafe {
                 device.create_framebuffer(&framebuffer_create_info, None)
@@ -293,10 +284,9 @@ impl Renderer {
             #[allow(deprecated)]
             allocator
                 .create_buffer(
-                    &BufferCreateInfo::builder()
+                    &BufferCreateInfo::default()
                         .size((mesh.vertices.len() * size_of::<Vertex>()) as u64)
-                        .usage(BufferUsageFlags::VERTEX_BUFFER)
-                        .build(),
+                        .usage(BufferUsageFlags::VERTEX_BUFFER),
                     &AllocationCreateInfo {
                         usage: vk_mem::MemoryUsage::CpuToGpu,
                         ..Default::default()
@@ -452,15 +442,14 @@ impl Renderer {
             },
         ];
 
-        let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+        let render_pass_begin_info = vk::RenderPassBeginInfo::default()
             .render_pass(self.render_pass)
             .render_area(Rect2D {
                 offset: vk::Offset2D { x: 0, y: 0 },
                 extent: self.boilerplate.swapchain.extent,
             })
             .framebuffer(self.framebuffers[image_index as usize])
-            .clear_values(&clear_values)
-            .build();
+            .clear_values(&clear_values);
 
         self.boilerplate
             .command_manager

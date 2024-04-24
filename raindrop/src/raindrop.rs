@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy_ecs::schedule::IntoSystemConfigs;
 use config::Config;
 use logger::init_logging;
@@ -28,7 +30,7 @@ impl Raindrop {
     pub fn new(config: &Config) -> Raindrop {
         init_logging("engine.log");
 
-        let event_loop = EventLoop::new();
+        let event_loop = EventLoop::new().unwrap();
 
         let window = WindowBuilder::new()
             .with_title(config.info.name.clone())
@@ -55,7 +57,10 @@ impl Raindrop {
         schedule_type: ScheduleType,
         systems: impl IntoSystemConfigs<M>,
     ) {
-        self.engine.as_mut().unwrap().add_systems(schedule_type, systems);
+        self.engine
+            .as_mut()
+            .unwrap()
+            .add_systems(schedule_type, systems);
     }
 
     /// Run the game loop
@@ -77,7 +82,7 @@ impl Raindrop {
         let app = std::mem::replace(self, Raindrop::empty());
 
         let event_loop = app.event_loop.unwrap();
-        let window = app.window.unwrap();
+        let window = Arc::new(app.window.unwrap());
         let mut engine = app.engine.unwrap();
 
         engine.startup();
@@ -99,6 +104,6 @@ impl Raindrop {
                     g.exit();
                 }
             },
-        );
+        ).unwrap();
     }
 }

@@ -36,38 +36,34 @@ impl Vertex {
         };
 
         vertex_input_description.binding_descriptions.push(
-            VertexInputBindingDescription::builder()
+            VertexInputBindingDescription::default()
                 .binding(0)
                 .stride(size_of::<Vertex>() as u32)
-                .input_rate(VertexInputRate::VERTEX)
-                .build(),
+                .input_rate(VertexInputRate::VERTEX),
         );
 
         vertex_input_description.attribute_descriptions.push(
-            VertexInputAttributeDescription::builder()
+            VertexInputAttributeDescription::default()
                 .binding(0)
                 .location(0)
                 .format(ash::vk::Format::R32G32B32_SFLOAT)
-                .offset(offset_of!(Self, position) as u32)
-                .build(),
+                .offset(offset_of!(Self, position) as u32),
         );
 
         vertex_input_description.attribute_descriptions.push(
-            VertexInputAttributeDescription::builder()
+            VertexInputAttributeDescription::default()
                 .binding(0)
                 .location(1)
                 .format(ash::vk::Format::R32G32B32_SFLOAT)
-                .offset(offset_of!(Self, normal) as u32)
-                .build(),
+                .offset(offset_of!(Self, normal) as u32),
         );
 
         vertex_input_description.attribute_descriptions.push(
-            VertexInputAttributeDescription::builder()
+            VertexInputAttributeDescription::default()
                 .binding(0)
                 .location(2)
                 .format(ash::vk::Format::R32G32B32_SFLOAT)
-                .offset(offset_of!(Self, color) as u32)
-                .build(),
+                .offset(offset_of!(Self, color) as u32),
         );
 
         vertex_input_description

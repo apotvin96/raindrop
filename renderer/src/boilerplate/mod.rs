@@ -4,7 +4,6 @@ mod instance;
 mod physical_device;
 
 use ash::{
-    extensions::ext::DebugUtils,
     vk::{DebugUtilsMessengerEXT, PhysicalDevice},
     Device, Entry, Instance,
 };
@@ -20,7 +19,7 @@ use super::primitives::{CommandManager, Queue, Surface, Swapchain};
 pub struct Boilerplate {
     pub instance: Instance,
     pub debug_messenger: DebugUtilsMessengerEXT,
-    pub debug_loader: DebugUtils,
+    pub debug_loader: ash::ext::debug_utils::Instance,
     pub physical_device: PhysicalDevice,
     pub surface: ManuallyDrop<Surface>,
     pub device: Device,

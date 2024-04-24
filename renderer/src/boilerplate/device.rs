@@ -1,4 +1,7 @@
-use ash::{vk::{self, PhysicalDevice}, Device, Instance};
+use ash::{
+    vk::{self, PhysicalDevice},
+    Device, Instance,
+};
 use log::trace;
 
 pub fn init_device(
@@ -8,8 +11,7 @@ pub fn init_device(
 ) -> Result<Device, String> {
     trace!("Initializing: Vk Device");
 
-    let mut extension_name_pointers: Vec<*const i8> =
-        vec![ash::extensions::khr::Swapchain::name().as_ptr()];
+    let mut extension_name_pointers: Vec<*const i8> = vec![ash::khr::swapchain::NAME.as_ptr()];
 
     let portability_extension = std::ffi::CString::new("VK_KHR_portability_subset").unwrap();
 
@@ -17,24 +19,21 @@ pub fn init_device(
         extension_name_pointers.push(portability_extension.as_ptr());
     }
 
-    let mut queue_create_infos = vec![vk::DeviceQueueCreateInfo::builder()
+    let mut queue_create_infos = vec![vk::DeviceQueueCreateInfo::default()
         .queue_family_index(queue_indices[0])
-        .queue_priorities(&[1.0])
-        .build()];
+        .queue_priorities(&[1.0])];
 
     if queue_indices[0] != queue_indices[1] {
         queue_create_infos.push(
-            vk::DeviceQueueCreateInfo::builder()
+            vk::DeviceQueueCreateInfo::default()
                 .queue_family_index(queue_indices[1])
-                .queue_priorities(&[1.0])
-                .build(),
+                .queue_priorities(&[1.0]),
         );
     }
 
-    let device_create_info = vk::DeviceCreateInfo::builder()
+    let device_create_info = vk::DeviceCreateInfo::default()
         .enabled_extension_names(&extension_name_pointers)
-        .queue_create_infos(&queue_create_infos)
-        .build();
+        .queue_create_infos(&queue_create_infos);
 
     let device =
         match unsafe { instance.create_device(*physical_device, &device_create_info, None) } {

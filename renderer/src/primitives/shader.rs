@@ -53,9 +53,8 @@ impl Shader {
             )
             .unwrap();
 
-        let shader_module_create_info = ShaderModuleCreateInfo::builder()
-            .code(spirv_binary_data.as_binary())
-            .build();
+        let shader_module_create_info = ShaderModuleCreateInfo::default()
+            .code(spirv_binary_data.as_binary());
 
         let module = match unsafe { device.create_shader_module(&shader_module_create_info, None) }
         {
@@ -73,11 +72,10 @@ impl Shader {
     }
 
     pub fn stage_create_info(&self) -> PipelineShaderStageCreateInfo {
-        PipelineShaderStageCreateInfo::builder()
+        PipelineShaderStageCreateInfo::default()
             .stage(self.stage)
             .module(self.module)
             .name(&DEFAULT_ENTRY_POINT_NAME)
-            .build()
     }
 }
 

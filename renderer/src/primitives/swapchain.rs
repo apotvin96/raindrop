@@ -13,7 +13,7 @@ use super::{AllocatedImage, Queue, Surface};
 
 pub struct Swapchain {
     device: Device,
-    loader: ash::extensions::khr::Swapchain,
+    loader: ash::khr::swapchain::Device,
     pub swapchain: SwapchainKHR,
     pub extent: vk::Extent2D,
     pub image_format: Format,
@@ -41,7 +41,7 @@ impl Swapchain {
             max_image_count = 3;
         }
 
-        let create_info = SwapchainCreateInfoKHR::builder()
+        let create_info = SwapchainCreateInfoKHR::default()
             .surface(surface.surface)
             .image_format(surface.formats.first().unwrap().format)
             .image_color_space(surface.formats.first().unwrap().color_space)
@@ -54,10 +54,9 @@ impl Swapchain {
             .pre_transform(surface.capabilities.current_transform)
             .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
             .present_mode(vk::PresentModeKHR::FIFO)
-            .queue_family_indices(&graphics_queue_indices)
-            .build();
+            .queue_family_indices(&graphics_queue_indices);
 
-        let loader = ash::extensions::khr::Swapchain::new(instance, device);
+        let loader = ash::khr::swapchain::Device::new(instance, device);
 
         let swapchain = match unsafe { loader.create_swapchain(&create_info, None) } {
             Ok(swapchain) => swapchain,
@@ -74,20 +73,18 @@ impl Swapchain {
         let mut image_views: Vec<vk::ImageView> = Vec::with_capacity(images.len());
 
         for image in &images {
-            let subresource_range = vk::ImageSubresourceRange::builder()
+            let subresource_range = vk::ImageSubresourceRange::default()
                 .aspect_mask(vk::ImageAspectFlags::COLOR)
                 .base_mip_level(0)
                 .level_count(1)
                 .base_array_layer(0)
-                .layer_count(1)
-                .build();
+                .layer_count(1);
 
-            let image_view_create_info = vk::ImageViewCreateInfo::builder()
+            let image_view_create_info = vk::ImageViewCreateInfo::default()
                 .image(*image)
                 .view_type(vk::ImageViewType::TYPE_2D)
                 .format(image_format)
-                .subresource_range(subresource_range)
-                .build();
+                .subresource_range(subresource_range);
 
             let image_view = match unsafe {
                 device.create_image_view(&image_view_create_info, None)
@@ -99,7 +96,7 @@ impl Swapchain {
             image_views.push(image_view);
         }
 
-        let depth_image_create_info = ImageCreateInfo::builder()
+        let depth_image_create_info = ImageCreateInfo::default()
             .image_type(ImageType::TYPE_2D)
             .format(Format::D32_SFLOAT)
             .extent(Extent3D {
@@ -111,8 +108,7 @@ impl Swapchain {
             .array_layers(1)
             .samples(SampleCountFlags::TYPE_1)
             .tiling(ImageTiling::OPTIMAL)
-            .usage(ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
-            .build();
+            .usage(ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT);
 
         // TODO: This is marked as deprecated in the vk_mem crate, but the replacement is not yet implemented
         //       GpuOnly is the only option for now that is working for me
@@ -133,20 +129,18 @@ impl Swapchain {
 
         let depth_image = AllocatedImage { image, allocation };
 
-        let depth_image_view_create_info = ImageViewCreateInfo::builder()
+        let depth_image_view_create_info = ImageViewCreateInfo::default()
             .view_type(ImageViewType::TYPE_2D)
             .image(depth_image.image)
             .format(Format::D32_SFLOAT)
             .subresource_range(
-                vk::ImageSubresourceRange::builder()
+                vk::ImageSubresourceRange::default()
                     .aspect_mask(vk::ImageAspectFlags::DEPTH)
                     .base_mip_level(0)
                     .level_count(1)
                     .base_array_layer(0)
-                    .layer_count(1)
-                    .build(),
-            )
-            .build();
+                    .layer_count(1),
+            );
 
         let depth_image_view =
             unsafe { device.create_image_view(&depth_image_view_create_info, None) }.unwrap();
@@ -178,11 +172,10 @@ impl Swapchain {
         let swapchains = [self.swapchain];
         let image_indices = [image_index];
 
-        let present_info = vk::PresentInfoKHR::builder()
+        let present_info = vk::PresentInfoKHR::default()
             .wait_semaphores(wait_semaphores)
             .swapchains(&swapchains)
-            .image_indices(&image_indices)
-            .build();
+            .image_indices(&image_indices);
 
         match unsafe { self.loader.queue_present(queue.main_queue, &present_info) } {
             Ok(_) => {}

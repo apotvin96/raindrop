@@ -4,11 +4,11 @@ use ash::{
 };
 use winit::window::Window;
 
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 pub struct Surface {
     pub surface: SurfaceKHR,
-    surface_loader: ash::extensions::khr::Surface,
+    surface_loader: ash::khr::surface::Instance,
     pub capabilities: ash::vk::SurfaceCapabilitiesKHR,
     pub formats: Vec<ash::vk::SurfaceFormatKHR>,
 }
@@ -20,20 +20,24 @@ impl Surface {
         physical_device: &PhysicalDevice,
         window: &Window,
     ) -> Result<Surface, String> {
+        let raw_display_handle = match window.display_handle() {
+            Ok(handle) => handle.as_raw(),
+            Err(_) => return Err("Failed to get raw display handle".to_string()),
+        };
+
+        let raw_window_handle = match window.window_handle() {
+            Ok(handle) => handle.as_raw(),
+            Err(_) => return Err("Failed to get raw window handle".to_string()),
+        };
+
         let surface = match unsafe {
-            ash_window::create_surface(
-                entry,
-                instance,
-                window.raw_display_handle(),
-                window.raw_window_handle(),
-                None,
-            )
+            ash_window::create_surface(entry, instance, raw_display_handle, raw_window_handle, None)
         } {
             Ok(surface) => surface,
             Err(e) => return Err("Failed to create surface: ".to_owned() + &e.to_string()),
         };
 
-        let surface_loader = ash::extensions::khr::Surface::new(entry, instance);
+        let surface_loader = ash::khr::surface::Instance::new(entry, instance);
 
         let capabilities = match unsafe {
             surface_loader.get_physical_device_surface_capabilities(*physical_device, surface)

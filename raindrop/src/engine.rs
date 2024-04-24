@@ -5,7 +5,8 @@ use bevy_ecs::{
 use config::Config;
 use log::trace;
 use winit::{
-    event::{Event, VirtualKeyCode, WindowEvent},
+    event::{Event, WindowEvent},
+    keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
 
@@ -102,29 +103,31 @@ impl Engine {
         {
             match event {
                 WindowEvent::KeyboardInput {
-                    input:
-                        winit::event::KeyboardInput {
-                            virtual_keycode: Some(virtual_code),
+                    event:
+                        winit::event::KeyEvent {
+                            physical_key,
                             state,
                             ..
                         },
                     ..
-                } => match (virtual_code, state) {
-                    (VirtualKeyCode::Escape, _) => {
+                } => match (physical_key, state) {
+                    (PhysicalKey::Code(KeyCode::Escape), _) => {
                         return false;
                     }
-                    (keycode, state) => {
-                        let mut control_input =
-                            self.world.get_resource_mut::<ControlInput>().unwrap();
+                    (physical_key, state) => {
+                        if let PhysicalKey::Code(keycode) = physical_key {
+                            let mut control_input =
+                                self.world.get_resource_mut::<ControlInput>().unwrap();
 
-                        match state {
-                            winit::event::ElementState::Pressed => {
-                                control_input.set_key_down(*keycode);
+                            match state {
+                                winit::event::ElementState::Pressed => {
+                                    control_input.set_key_down(*keycode);
+                                }
+                                winit::event::ElementState::Released => {
+                                    control_input.set_key_up(*keycode);
+                                }
                             }
-                            winit::event::ElementState::Released => {
-                                control_input.set_key_up(*keycode);
-                            }
-                        }
+                        };
                     }
                 },
                 WindowEvent::CloseRequested => {

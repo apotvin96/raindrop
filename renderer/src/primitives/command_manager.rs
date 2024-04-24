@@ -22,10 +22,9 @@ pub struct CommandManager {
 
 impl CommandManager {
     pub fn new(device: &Device, queue: &Queue) -> Result<CommandManager, String> {
-        let mut pool_create_info = vk::CommandPoolCreateInfo::builder()
+        let mut pool_create_info = vk::CommandPoolCreateInfo::default()
             .queue_family_index(queue.main_queue_index)
-            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .build();
+            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
 
         let main_command_pool = match unsafe { device.create_command_pool(&pool_create_info, None) }
         {
@@ -44,7 +43,7 @@ impl CommandManager {
             }
         };
 
-        let mut command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+        let mut command_buffer_allocate_info = vk::CommandBufferAllocateInfo::default()
             .command_pool(main_command_pool)
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(1);
@@ -85,9 +84,8 @@ impl CommandManager {
             }
         }
 
-        let begin_info = vk::CommandBufferBeginInfo::builder()
-            .flags(CommandBufferUsageFlags::ONE_TIME_SUBMIT)
-            .build();
+        let begin_info =
+            vk::CommandBufferBeginInfo::default().flags(CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
         unsafe {
             self.device
@@ -127,12 +125,11 @@ impl CommandManager {
 
         let pipeline_stage_flags = [PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
 
-        let submit_info = SubmitInfo::builder()
+        let submit_info = SubmitInfo::default()
             .wait_dst_stage_mask(&pipeline_stage_flags)
             .wait_semaphores(wait_semaphores)
             .signal_semaphores(signal_semaphores)
-            .command_buffers(&submit_command_buffers)
-            .build();
+            .command_buffers(&submit_command_buffers);
 
         let submit_infos = [submit_info];
 
