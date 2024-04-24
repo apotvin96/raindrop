@@ -321,7 +321,6 @@ impl Renderer {
     ) {
         // Flip the y axis to match the Vulkan coordinate system
         projection_matrix[(1, 1)] *= -1.0;
-
         let view_proj_mat = projection_matrix * view_matrix;
 
         let mut mesh_bind_count = 0;
@@ -369,8 +368,8 @@ impl Renderer {
             let mvp = view_proj_mat * renderable.matrix;
 
             let push_constants = MeshPushConstants {
-                render_matrix: mvp,
                 data: glm::vec4(0.0, 0.0, 0.0, 0.0),
+                render_matrix: mvp,
             };
 
             self.boilerplate.command_manager.push_constants(
