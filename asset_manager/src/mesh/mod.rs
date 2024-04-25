@@ -1,7 +1,6 @@
 mod mesh_gpu_info;
 mod vertex;
 
-use gltf::mesh::Mode;
 pub use mesh_gpu_info::MeshGpuInfo;
 pub use vertex::Vertex;
 
@@ -20,6 +19,11 @@ impl Mesh {
 
         let import = gltf::import(&self.asset_info.id);
 
+        if import.is_err() {
+            self.asset_info.status = crate::asset_info::AssetStatus::Invalid;
+            return;
+        }
+
         let (gltf, buffers, _) = import.unwrap();
 
         for scene in gltf.scenes() {
@@ -27,7 +31,7 @@ impl Mesh {
                 let mesh = node.mesh().unwrap();
 
                 for primitive in mesh.primitives() {
-                    if primitive.mode() != Mode::Triangles {
+                    if primitive.mode() != gltf::mesh::Mode::Triangles {
                         continue;
                     }
 

@@ -1,4 +1,5 @@
 pub enum AssetStatus {
+    Invalid,
     Unloaded,
     Loaded,
     Uploaded,

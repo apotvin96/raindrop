@@ -10,21 +10,14 @@ use ash::{
     Device,
 };
 use log::trace;
-
 use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
 use config::Config;
 
-use crate::{mesh::MeshPushConstants, primitives::AllocatedBuffer};
-
+use crate::mesh::{Mesh, MeshPushConstants, Vertex};
+use crate::primitives::{AllocatedBuffer, Pipeline, Shader, Swapchain};
 use crate::Boilerplate;
-
-use crate::primitives::{Pipeline, Shader, Swapchain};
-
 use crate::Material;
-
-use crate::mesh::{Mesh, Vertex};
-
 use crate::Renderable;
 
 pub struct Renderer {
@@ -38,6 +31,8 @@ pub struct Renderer {
     meshes: HashMap<String, Rc<RefCell<Mesh>>>,
     materials: HashMap<String, Rc<RefCell<Material>>>,
     framenumber: u64,
+    mesh_binds: u64,
+    material_binds: u64,
 }
 
 impl Renderer {
@@ -155,6 +150,8 @@ impl Renderer {
             meshes,
             materials,
             framenumber: 0,
+            mesh_binds: 0,
+            material_binds: 0,
         })
     }
 
@@ -297,18 +294,60 @@ impl Renderer {
         mesh.vertices = vec![];
     }
 
+    fn bind_renderable_mesh(&mut self, renderable: &Renderable) -> (Option<Rc<RefCell<Mesh>>>, String) {
+        let mesh = self.meshes.get(&renderable.mesh).unwrap();
+
+        let offset = 0;
+        self.boilerplate.command_manager.bind_vertex_buffers(
+            0,
+            &[mesh
+                .as_ref()
+                .borrow()
+                .vertex_buffer
+                .as_ref()
+                .unwrap()
+                .buffer],
+            &[offset],
+        );
+
+        let last_mesh = Some(Rc::clone(self.meshes.get(&renderable.mesh).unwrap()));
+        let last_mesh_id = renderable.mesh.clone();
+
+        self.mesh_binds += 1;
+
+        (last_mesh, last_mesh_id)
+    }
+
+    fn bind_renderable_material(
+        &mut self,
+        renderable: &Renderable,
+    ) -> (Option<Rc<RefCell<Material>>>, String) {
+        let material = self.materials.get(&renderable.material).unwrap();
+
+        self.boilerplate
+            .command_manager
+            .bind_pipeline(&material.borrow().pipeline.borrow());
+
+        let last_material = Some(Rc::clone(self.materials.get(&renderable.material).unwrap()));
+        let last_material_id = renderable.material.clone();
+
+        self.material_binds += 1;
+
+        (last_material, last_material_id)
+    }
+
     fn render_objects(
         &mut self,
         mut projection_matrix: glm::Mat4,
         view_matrix: glm::Mat4,
         renderables: &[Renderable],
     ) {
+        self.mesh_binds = 0;
+        self.material_binds = 0;
+
         // Flip the y axis to match the Vulkan coordinate system
         projection_matrix[(1, 1)] *= -1.0;
         let view_proj_mat = projection_matrix * view_matrix;
-
-        let mut mesh_bind_count = 0;
-        let mut material_bind_count = 0;
 
         let mut last_mesh: Option<Rc<RefCell<Mesh>>> = None;
         let mut last_mesh_id: String = "".to_string();
@@ -317,36 +356,11 @@ impl Renderer {
 
         for renderable in renderables {
             if renderable.mesh != last_mesh_id {
-                let mesh = self.meshes.get(&renderable.mesh).unwrap();
-
-                let offset = 0;
-                self.boilerplate.command_manager.bind_vertex_buffers(
-                    0,
-                    &[mesh
-                        .as_ref()
-                        .borrow()
-                        .vertex_buffer
-                        .as_ref()
-                        .unwrap()
-                        .buffer],
-                    &[offset],
-                );
-
-                last_mesh = Some(Rc::clone(self.meshes.get(&renderable.mesh).unwrap()));
-                last_mesh_id = renderable.mesh.clone();
-                mesh_bind_count += 1;
+                (last_mesh, last_mesh_id) = self.bind_renderable_mesh(renderable);
             }
 
             if renderable.material != last_material_id {
-                let material = self.materials.get(&renderable.material).unwrap();
-
-                self.boilerplate
-                    .command_manager
-                    .bind_pipeline(&material.borrow().pipeline.borrow());
-
-                last_material = Some(Rc::clone(self.materials.get(&renderable.material).unwrap()));
-                last_material_id = renderable.material.clone();
-                material_bind_count += 1;
+                (last_material, last_material_id) = self.bind_renderable_material(renderable);
             }
 
             let mvp = view_proj_mat * renderable.matrix;
@@ -375,11 +389,12 @@ impl Renderer {
             );
         }
 
+        // TODO: Bring back mesh and material bind count as class members
         trace!(
             "> Rendered {} objects with {} mesh bind(s) and {} material bind(s)",
             renderables.len(),
-            mesh_bind_count,
-            material_bind_count
+            self.mesh_binds,
+            self.material_binds
         );
     }
 
