@@ -44,6 +44,11 @@ impl Mesh {
         }
     }
 
+    // The mesh has been uploaded to the GPU and we are storing the GPU info for later reference
+    pub fn add_gpu_info(&mut self, gpu_info: MeshGpuInfo) {
+        self.gpu_info = Some(gpu_info);
+    }
+
     fn get_triangular_primitive_vertices(primitive: &gltf::Primitive, buffers: &[gltf::buffer::Data]) -> Vec<Vertex> {
         let mut positions: Vec<glm::Vec3> = vec![];
         let mut normals: Vec<glm::Vec3> = vec![];
