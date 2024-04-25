@@ -52,6 +52,11 @@ impl Mesh {
         self.vertices = vec![];
     }
 
+    pub fn remove_gpu_info(&mut self) {
+        self.gpu_info = None;
+        self.asset_info.status = AssetStatus::Unloaded;
+    }
+
     pub fn needs_uploaded(&self) -> bool {
         self.asset_info.status == AssetStatus::Loaded
     }

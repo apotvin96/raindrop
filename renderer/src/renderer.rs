@@ -124,14 +124,6 @@ impl Renderer {
             Rc::new(RefCell::new(mesh_pipeline)),
         );
 
-        // let mut mesh = Mesh::from_path("assets/models/monkey/monkey.glb");
-        // Self::upload_mesh(&mut boilerplate.allocator, &mut mesh);
-        // meshes.insert("monkey".to_string(), Rc::new(RefCell::new(mesh)));
-
-        // let mut mesh2 = Mesh::from_path("assets/models/monkey/monkey.glb");
-        // Self::upload_mesh(&mut boilerplate.allocator, &mut mesh2);
-        // meshes.insert("monkey2".to_string(), Rc::new(RefCell::new(mesh2)));
-
         let mut materials = HashMap::new();
         materials.insert(
             "defaultmesh".to_string(),
