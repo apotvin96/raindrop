@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, mem::size_of, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, mem::size_of, rc::Rc};
 
 use ash::{
     vk::{
@@ -10,7 +10,7 @@ use ash::{
     Device,
 };
 use asset_manager::{AssetManager, Mesh, MeshGpuInfo};
-use log::{error, trace};
+use log::trace;
 use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
 use config::Config;
@@ -21,7 +21,7 @@ use crate::Material;
 use crate::Renderable;
 use crate::{
     mesh::Vertex,
-    primitives::{AllocatedBuffer, Pipeline, Shader, Swapchain},
+    primitives::{Pipeline, Shader, Swapchain},
 };
 
 pub struct Renderer {
@@ -32,7 +32,6 @@ pub struct Renderer {
     present_semaphore: vk::Semaphore,
     fence: vk::Fence,
     pipelines: HashMap<String, Rc<RefCell<Pipeline>>>,
-    meshes: HashMap<String, Rc<RefCell<Mesh>>>,
     materials: HashMap<String, Rc<RefCell<Material>>>,
     framenumber: u64,
     mesh_binds: u64,
@@ -43,7 +42,7 @@ impl Renderer {
     pub fn new(config: &Config, window: &winit::window::Window) -> Result<Renderer, String> {
         trace!("Initializing: Renderer");
 
-        let mut boilerplate = match Boilerplate::new(config, window) {
+        let boilerplate = match Boilerplate::new(config, window) {
             Ok(boilerplate) => boilerplate,
             Err(e) => return Err("Failed to init boilerplate: ".to_owned() + &e),
         };
@@ -125,8 +124,6 @@ impl Renderer {
             Rc::new(RefCell::new(mesh_pipeline)),
         );
 
-        let mut meshes = HashMap::new();
-
         // let mut mesh = Mesh::from_path("assets/models/monkey/monkey.glb");
         // Self::upload_mesh(&mut boilerplate.allocator, &mut mesh);
         // meshes.insert("monkey".to_string(), Rc::new(RefCell::new(mesh)));
@@ -151,7 +148,6 @@ impl Renderer {
             render_semaphore,
             present_semaphore,
             pipelines,
-            meshes,
             materials,
             framenumber: 0,
             mesh_binds: 0,
@@ -506,7 +502,7 @@ impl Renderer {
             self.materials = HashMap::new();
             self.pipelines = HashMap::new();
 
-            for (_, mesh_clone) in asset_manager.iter_meshes_mut().lock().unwrap().drain() {
+            for (_, mesh_clone) in asset_manager.iter_meshes_mut().lock().unwrap().iter_mut() {
                 let mesh_handle = mesh_clone.lock();
 
                 let mut mesh = mesh_handle.unwrap();
@@ -517,8 +513,6 @@ impl Renderer {
                         .destroy_buffer(gpu_info.buffer, &mut gpu_info.allocation)
                 };
             }
-
-            self.meshes = HashMap::new();
 
             for framebuffer in &self.framebuffers {
                 self.boilerplate

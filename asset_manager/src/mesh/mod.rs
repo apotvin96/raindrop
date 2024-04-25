@@ -1,7 +1,6 @@
 mod mesh_gpu_info;
 mod vertex;
 
-use log::error;
 pub use mesh_gpu_info::MeshGpuInfo;
 pub use vertex::Vertex;
 

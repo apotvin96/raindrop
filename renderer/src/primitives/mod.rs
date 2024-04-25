@@ -1,4 +1,3 @@
-pub mod allocated_buffer;
 pub mod allocated_image;
 pub mod command_manager;
 pub mod pipeline;
@@ -7,7 +6,6 @@ pub mod shader;
 pub mod surface;
 pub mod swapchain;
 
-pub use allocated_buffer::AllocatedBuffer;
 pub use allocated_image::AllocatedImage;
 pub use command_manager::CommandManager;
 pub use pipeline::Pipeline;

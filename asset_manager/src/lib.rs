@@ -11,7 +11,6 @@ use std::{
 
 use asset_info::AssetInfo;
 
-use log::error;
 pub use mesh::MeshGpuInfo;
 pub use mesh::{Mesh, Vertex};
 
