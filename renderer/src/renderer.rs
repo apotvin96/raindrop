@@ -389,7 +389,6 @@ impl Renderer {
             );
         }
 
-        // TODO: Bring back mesh and material bind count as class members
         trace!(
             "> Rendered {} objects with {} mesh bind(s) and {} material bind(s)",
             renderables.len(),
