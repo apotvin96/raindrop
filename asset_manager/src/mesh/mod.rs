@@ -1,10 +1,11 @@
 mod mesh_gpu_info;
 mod vertex;
 
+use log::error;
 pub use mesh_gpu_info::MeshGpuInfo;
 pub use vertex::Vertex;
 
-use crate::asset_info::AssetInfo;
+use crate::asset_info::{AssetInfo, AssetStatus};
 
 pub struct Mesh {
     pub asset_info: AssetInfo,
@@ -37,8 +38,7 @@ impl Mesh {
 
                     self.vertices = Mesh::get_triangular_primitive_vertices(&primitive, &buffers);
                     self.vertex_count = self.vertices.len() as u32;
-
-                    return;
+                    self.asset_info.status = AssetStatus::Loaded;
                 }
             }
         }
@@ -47,9 +47,20 @@ impl Mesh {
     // The mesh has been uploaded to the GPU and we are storing the GPU info for later reference
     pub fn add_gpu_info(&mut self, gpu_info: MeshGpuInfo) {
         self.gpu_info = Some(gpu_info);
+        self.asset_info.status = AssetStatus::Uploaded;
+
+        // Free the cpu side data since we no longer need it
+        self.vertices = vec![];
     }
 
-    fn get_triangular_primitive_vertices(primitive: &gltf::Primitive, buffers: &[gltf::buffer::Data]) -> Vec<Vertex> {
+    pub fn needs_uploaded(&self) -> bool {
+        self.asset_info.status == AssetStatus::Loaded
+    }
+
+    fn get_triangular_primitive_vertices(
+        primitive: &gltf::Primitive,
+        buffers: &[gltf::buffer::Data],
+    ) -> Vec<Vertex> {
         let mut positions: Vec<glm::Vec3> = vec![];
         let mut normals: Vec<glm::Vec3> = vec![];
 

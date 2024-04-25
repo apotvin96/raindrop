@@ -104,6 +104,7 @@ impl Raindrop {
                     g.exit();
                 }
             },
-        ).unwrap();
+        )
+        .unwrap();
     }
 }

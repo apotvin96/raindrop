@@ -22,7 +22,7 @@ fn init_scene(mut commands: Commands, config: Res<GameConfig>) {
     commands.spawn((
         Transform::new(),
         Mesh {
-            id: "monkey".to_string(),
+            id: "assets/models/monkey/monkey.glb".to_string(),
         },
         Material {
             id: "defaultmesh".to_string(),
@@ -35,7 +35,11 @@ fn init_scene(mut commands: Commands, config: Res<GameConfig>) {
             transform.set_translation(glm::vec3(x as f32 * 2.0, 0.0, y as f32 * 2.0));
             transform.set_scale(glm::vec3(0.2, 0.2, 0.2));
 
-            let mesh_str = if y % 2 == 0 { "monkey" } else { "monkey2" };
+            let mesh_str = if y % 2 == 0 {
+                "assets/models/monkey/monkey.glb"
+            } else {
+                "assets/models/monkey/monkey.glb"
+            };
 
             commands.spawn((
                 transform,

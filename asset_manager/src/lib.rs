@@ -10,7 +10,10 @@ use std::{
 };
 
 use asset_info::AssetInfo;
-use mesh::Mesh;
+
+use log::error;
+pub use mesh::MeshGpuInfo;
+pub use mesh::{Mesh, Vertex};
 
 pub struct AssetManager {
     meshes: Arc<Mutex<HashMap<String, Arc<Mutex<Mesh>>>>>,
@@ -21,6 +24,10 @@ impl AssetManager {
         AssetManager {
             meshes: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub fn iter_meshes_mut(&mut self) -> Arc<Mutex<HashMap<String, Arc<Mutex<Mesh>>>>> {
+        self.meshes.clone()
     }
 
     pub fn get_mesh(&mut self, name: &String) -> Arc<Mutex<Mesh>> {

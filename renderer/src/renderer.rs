@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, mem::size_of, rc::Rc};
+use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, mem::size_of, rc::Rc};
 
 use ash::{
     vk::{
@@ -9,16 +9,20 @@ use ash::{
     },
     Device,
 };
-use log::trace;
+use asset_manager::{AssetManager, Mesh, MeshGpuInfo};
+use log::{error, trace};
 use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
 use config::Config;
 
-use crate::mesh::{Mesh, MeshPushConstants, Vertex};
-use crate::primitives::{AllocatedBuffer, Pipeline, Shader, Swapchain};
+use crate::mesh::MeshPushConstants;
 use crate::Boilerplate;
 use crate::Material;
 use crate::Renderable;
+use crate::{
+    mesh::Vertex,
+    primitives::{AllocatedBuffer, Pipeline, Shader, Swapchain},
+};
 
 pub struct Renderer {
     boilerplate: Boilerplate,
@@ -123,13 +127,13 @@ impl Renderer {
 
         let mut meshes = HashMap::new();
 
-        let mut mesh = Mesh::from_path("assets/models/monkey/monkey.glb");
-        Self::upload_mesh(&mut boilerplate.allocator, &mut mesh);
-        meshes.insert("monkey".to_string(), Rc::new(RefCell::new(mesh)));
+        // let mut mesh = Mesh::from_path("assets/models/monkey/monkey.glb");
+        // Self::upload_mesh(&mut boilerplate.allocator, &mut mesh);
+        // meshes.insert("monkey".to_string(), Rc::new(RefCell::new(mesh)));
 
-        let mut mesh2 = Mesh::from_path("assets/models/monkey/monkey.glb");
-        Self::upload_mesh(&mut boilerplate.allocator, &mut mesh2);
-        meshes.insert("monkey2".to_string(), Rc::new(RefCell::new(mesh2)));
+        // let mut mesh2 = Mesh::from_path("assets/models/monkey/monkey.glb");
+        // Self::upload_mesh(&mut boilerplate.allocator, &mut mesh2);
+        // meshes.insert("monkey2".to_string(), Rc::new(RefCell::new(mesh2)));
 
         let mut materials = HashMap::new();
         materials.insert(
@@ -286,36 +290,41 @@ impl Renderer {
         }
         unsafe { allocator.unmap_memory(&mut allocation) };
 
-        let allocated_buffer = AllocatedBuffer { buffer, allocation };
+        // let allocated_buffer = AllocatedBuffer { buffer, allocation };
 
-        mesh.vertex_buffer = Some(allocated_buffer);
+        mesh.add_gpu_info(MeshGpuInfo { buffer, allocation });
+
+        // mesh.vertex_buffer = Some(allocated_buffer);
 
         // Clear out the vertices data since we've now uploaded it to the GPU
-        mesh.vertices = vec![];
+        // mesh.vertices = vec![];
     }
 
-    fn bind_renderable_mesh(&mut self, renderable: &Renderable) -> (Option<Rc<RefCell<Mesh>>>, String) {
-        let mesh = self.meshes.get(&renderable.mesh).unwrap();
+    fn bind_renderable_mesh(
+        &mut self,
+        renderable: &Renderable,
+        asset_manager: &mut AssetManager,
+    ) -> (String, u32) {
+        let mesh_handle = asset_manager.get_mesh(&renderable.mesh);
+        let lock = mesh_handle.lock();
+        let mut mesh = lock.unwrap();
 
-        let offset = 0;
-        self.boilerplate.command_manager.bind_vertex_buffers(
-            0,
-            &[mesh
-                .as_ref()
-                .borrow()
-                .vertex_buffer
-                .as_ref()
-                .unwrap()
-                .buffer],
-            &[offset],
-        );
+        if mesh.needs_uploaded() {
+            Self::upload_mesh(&mut self.boilerplate.allocator, &mut mesh)
+        }
 
-        let last_mesh = Some(Rc::clone(self.meshes.get(&renderable.mesh).unwrap()));
-        let last_mesh_id = renderable.mesh.clone();
+        if mesh.gpu_info.is_some() {
+            let offset = 0;
+            let buffer = mesh.gpu_info.as_mut().unwrap().buffer;
 
-        self.mesh_binds += 1;
+            self.boilerplate
+                .command_manager
+                .bind_vertex_buffers(0, &[buffer], &[offset]);
 
-        (last_mesh, last_mesh_id)
+            self.mesh_binds += 1;
+        }
+
+        (renderable.mesh.clone(), mesh.vertex_count)
     }
 
     fn bind_renderable_material(
@@ -341,6 +350,7 @@ impl Renderer {
         mut projection_matrix: glm::Mat4,
         view_matrix: glm::Mat4,
         renderables: &[Renderable],
+        asset_manager: &mut AssetManager,
     ) {
         self.mesh_binds = 0;
         self.material_binds = 0;
@@ -349,14 +359,16 @@ impl Renderer {
         projection_matrix[(1, 1)] *= -1.0;
         let view_proj_mat = projection_matrix * view_matrix;
 
-        let mut last_mesh: Option<Rc<RefCell<Mesh>>> = None;
         let mut last_mesh_id: String = "".to_string();
+        let mut last_mesh_vertex_count = 0;
+
         let mut last_material: Option<Rc<RefCell<Material>>> = None;
         let mut last_material_id: String = "".to_string();
 
         for renderable in renderables {
             if renderable.mesh != last_mesh_id {
-                (last_mesh, last_mesh_id) = self.bind_renderable_mesh(renderable);
+                (last_mesh_id, last_mesh_vertex_count) =
+                    self.bind_renderable_mesh(renderable, asset_manager);
             }
 
             if renderable.material != last_material_id {
@@ -381,12 +393,9 @@ impl Renderer {
                 push_constants,
             );
 
-            self.boilerplate.command_manager.draw(
-                last_mesh.as_ref().unwrap().borrow().vertex_count,
-                1,
-                0,
-                0,
-            );
+            self.boilerplate
+                .command_manager
+                .draw(last_mesh_vertex_count, 1, 0, 0);
         }
 
         trace!(
@@ -402,6 +411,7 @@ impl Renderer {
         projection_matrix: glm::Mat4,
         view_matrix: glm::Mat4,
         renderables: &[Renderable],
+        asset_manager: &mut AssetManager,
     ) {
         trace!("Renderer Rendering");
 
@@ -452,7 +462,7 @@ impl Renderer {
             .command_manager
             .begin_render_pass(&render_pass_begin_info);
 
-        self.render_objects(projection_matrix, view_matrix, renderables);
+        self.render_objects(projection_matrix, view_matrix, renderables, asset_manager);
 
         self.boilerplate.command_manager.end_render_pass();
 
@@ -475,10 +485,8 @@ impl Renderer {
 
         self.framenumber += 1;
     }
-}
 
-impl Drop for Renderer {
-    fn drop(&mut self) {
+    pub fn cleanup(&mut self, asset_manager: &mut AssetManager) {
         trace!("Cleaning: Renderer");
 
         unsafe {
@@ -498,12 +506,18 @@ impl Drop for Renderer {
             self.materials = HashMap::new();
             self.pipelines = HashMap::new();
 
-            for mesh in self.meshes.iter_mut() {
-                mesh.1
-                    .as_ref()
-                    .borrow_mut()
-                    .free(&mut self.boilerplate.allocator)
+            for (_, mesh_clone) in asset_manager.iter_meshes_mut().lock().unwrap().drain() {
+                let mesh_handle = mesh_clone.lock();
+
+                let mut mesh = mesh_handle.unwrap();
+
+                if let Some(gpu_info) = &mut mesh.gpu_info {
+                    self.boilerplate
+                        .allocator
+                        .destroy_buffer(gpu_info.buffer, &mut gpu_info.allocation)
+                };
             }
+
             self.meshes = HashMap::new();
 
             for framebuffer in &self.framebuffers {

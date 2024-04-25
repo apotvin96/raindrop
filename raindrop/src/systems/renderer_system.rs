@@ -1,10 +1,11 @@
 use crate::{
     components::{Camera, Material, Mesh, Player, Transform},
-    resources::RendererResource,
+    resources::{AssetManagerResource, RendererResource},
 };
+
 use bevy_ecs::{
     query::{With, Without},
-    system::{NonSendMut, Query},
+    system::{NonSendMut, Query, ResMut},
 };
 
 use renderer::Renderable;
@@ -13,6 +14,7 @@ pub fn renderer_system(
     mut player_camera: Query<(&mut Camera, &mut Transform), With<Player>>,
     mut renderable_objects: Query<(&mut Transform, &Mesh, &Material), Without<Player>>,
     mut renderer: NonSendMut<RendererResource>,
+    mut asset_manager: ResMut<AssetManagerResource>,
 ) {
     let (camera, mut transform) = player_camera.iter_mut().next().unwrap();
 
@@ -31,8 +33,10 @@ pub fn renderer_system(
     renderables
         .sort_unstable_by_key(|renderable| (renderable.mesh.clone(), renderable.material.clone()));
 
-    renderer
-        .as_mut()
-        .renderer
-        .render(projection_matrix, view_matrix, &renderables);
+    renderer.as_mut().renderer.render(
+        projection_matrix,
+        view_matrix,
+        &renderables,
+        &mut asset_manager.as_mut().asset_manager,
+    );
 }

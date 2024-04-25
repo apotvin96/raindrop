@@ -26,6 +26,7 @@ pub struct Engine {
     startup_schedule: Schedule,
     update_schedule: Schedule,
     render_schedule: Schedule,
+    shutdown_schedule: Schedule,
 }
 
 impl Engine {
@@ -35,12 +36,14 @@ impl Engine {
         let startup_schedule = Engine::default_startup_schedule();
         let update_schedule = Engine::default_update_schedule();
         let render_schedule = Engine::default_render_schedule();
+        let shutdown_schedule = Engine::default_shutdown_schedule();
 
         let engine = Engine {
             world,
             startup_schedule,
             update_schedule,
             render_schedule,
+            shutdown_schedule,
         };
 
         Ok(engine)
@@ -140,8 +143,10 @@ impl Engine {
         true
     }
 
-    fn cleanup(&self) {
+    pub fn cleanup(&mut self) {
         trace!("Cleaning");
+
+        self.shutdown_schedule.run(&mut self.world);
     }
 
     fn default_world(config: &Config, window: &Window) -> World {
@@ -163,8 +168,8 @@ impl Engine {
     fn default_update_schedule() -> Schedule {
         let mut schedule = Schedule::default();
 
-        schedule.add_systems(systems::player_control_system::player_control_system);
-        schedule.add_systems(systems::spin_system::spin_system);
+        schedule.add_systems(systems::player_control_system);
+        schedule.add_systems(systems::spin_system);
 
         schedule
     }
@@ -172,7 +177,15 @@ impl Engine {
     fn default_render_schedule() -> Schedule {
         let mut schedule = Schedule::default();
 
-        schedule.add_systems(systems::renderer_system::renderer_system);
+        schedule.add_systems(systems::renderer_system);
+
+        schedule
+    }
+
+    fn default_shutdown_schedule() -> Schedule {
+        let mut schedule = Schedule::default();
+
+        schedule.add_systems(systems::renderer_shutdown_system);
 
         schedule
     }
