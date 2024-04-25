@@ -1,6 +1,7 @@
 extern crate nalgebra_glm as glm;
 
 mod asset_info;
+mod gpu_info;
 mod mesh;
 
 use std::{
@@ -11,7 +12,7 @@ use std::{
 
 use asset_info::AssetInfo;
 
-pub use mesh::MeshGpuInfo;
+pub use gpu_info::{BufferGpuInfo, ImageGpuInfo};
 pub use mesh::{Mesh, Vertex};
 
 pub struct AssetManager {

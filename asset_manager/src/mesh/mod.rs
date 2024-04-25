@@ -1,14 +1,15 @@
 mod mesh_gpu_info;
 mod vertex;
 
-pub use mesh_gpu_info::MeshGpuInfo;
 pub use vertex::Vertex;
 
 use crate::asset_info::{AssetInfo, AssetStatus};
 
+use crate::gpu_info::BufferGpuInfo;
+
 pub struct Mesh {
     pub asset_info: AssetInfo,
-    pub gpu_info: Option<MeshGpuInfo>,
+    pub gpu_info: Option<BufferGpuInfo>,
     pub vertices: Vec<Vertex>,
     pub vertex_count: u32,
 }
@@ -44,7 +45,7 @@ impl Mesh {
     }
 
     // The mesh has been uploaded to the GPU and we are storing the GPU info for later reference
-    pub fn add_gpu_info(&mut self, gpu_info: MeshGpuInfo) {
+    pub fn add_gpu_info(&mut self, gpu_info: BufferGpuInfo) {
         self.gpu_info = Some(gpu_info);
         self.asset_info.status = AssetStatus::Uploaded;
 

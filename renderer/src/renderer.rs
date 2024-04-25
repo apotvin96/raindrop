@@ -9,7 +9,7 @@ use ash::{
     },
     Device,
 };
-use asset_manager::{AssetManager, Mesh, MeshGpuInfo};
+use asset_manager::{AssetManager, Mesh, BufferGpuInfo};
 use log::trace;
 use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
@@ -280,7 +280,7 @@ impl Renderer {
 
         // let allocated_buffer = AllocatedBuffer { buffer, allocation };
 
-        mesh.add_gpu_info(MeshGpuInfo { buffer, allocation });
+        mesh.add_gpu_info(BufferGpuInfo { buffer, allocation });
 
         // mesh.vertex_buffer = Some(allocated_buffer);
 
