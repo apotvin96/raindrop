@@ -4,3 +4,4 @@ name = "Raindrop"
 [renderer]
 window_width = 800
 window_height = 600
+vsync = true

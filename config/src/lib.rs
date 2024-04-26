@@ -11,6 +11,7 @@ pub struct InfoConfig {
 
 #[derive(serde_derive::Deserialize, Clone)]
 pub struct RendererConfig {
+    pub vsync: bool,
     pub window_width: u32,
     pub window_height: u32,
 }
@@ -32,6 +33,7 @@ impl Default for Config {
                 name: "Raindrop Engine".to_string(),
             },
             renderer: RendererConfig {
+                vsync: true,
                 window_width: 800,
                 window_height: 600,
             },

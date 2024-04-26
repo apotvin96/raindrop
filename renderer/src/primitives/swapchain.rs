@@ -6,6 +6,7 @@ use ash::{
     },
     Device, Instance,
 };
+use config::Config;
 use log::warn;
 use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
@@ -25,6 +26,7 @@ pub struct Swapchain {
 
 impl Swapchain {
     pub fn new(
+        config: &Config,
         instance: &Instance,
         device: &Device,
         allocator: &Allocator,
@@ -41,6 +43,12 @@ impl Swapchain {
             max_image_count = 3;
         }
 
+        let present_mode = if config.renderer.vsync {
+            vk::PresentModeKHR::FIFO
+        } else {
+            vk::PresentModeKHR::IMMEDIATE
+        };
+
         let create_info = SwapchainCreateInfoKHR::default()
             .surface(surface.surface)
             .image_format(surface.formats.first().unwrap().format)
@@ -53,7 +61,7 @@ impl Swapchain {
             .image_extent(extent)
             .pre_transform(surface.capabilities.current_transform)
             .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-            .present_mode(vk::PresentModeKHR::FIFO)
+            .present_mode(present_mode)
             .queue_family_indices(&graphics_queue_indices);
 
         let loader = ash::khr::swapchain::Device::new(instance, device);

@@ -30,7 +30,7 @@ pub struct Boilerplate {
 }
 
 impl Boilerplate {
-    pub fn new(_config: &Config, window: &winit::window::Window) -> Result<Boilerplate, String> {
+    pub fn new(config: &Config, window: &winit::window::Window) -> Result<Boilerplate, String> {
         let entry = Entry::linked();
 
         let (instance, debug_loader, debug_messenger) = instance::init_instance(&entry, window)?;
@@ -47,7 +47,7 @@ impl Boilerplate {
 
         let queue = Queue::new(&device, queue_indices[0], queue_indices[1])?;
 
-        let swapchain = Swapchain::new(&instance, &device, &allocator, &surface, &queue)?;
+        let swapchain = Swapchain::new(config, &instance, &device, &allocator, &surface, &queue)?;
 
         let command_manager = CommandManager::new(&device, &queue)?;
 
