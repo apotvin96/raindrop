@@ -9,7 +9,7 @@ use ash::{
     },
     Device,
 };
-use asset_manager::{AssetManager, Mesh, BufferGpuInfo};
+use asset_manager::{AssetManager, BufferGpuInfo, Mesh};
 use log::trace;
 use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
@@ -292,7 +292,7 @@ impl Renderer {
         &mut self,
         renderable: &Renderable,
         asset_manager: &mut AssetManager,
-    ) -> (String, u32) {
+    ) -> (bool, String, u32) {
         let mesh_handle = asset_manager.get_mesh(&renderable.mesh);
         let lock = mesh_handle.lock();
         let mut mesh = lock.unwrap();
@@ -300,6 +300,8 @@ impl Renderer {
         if mesh.needs_uploaded() {
             Self::upload_mesh(&mut self.boilerplate.allocator, &mut mesh)
         }
+
+        let mut can_be_drawn = false;
 
         if mesh.gpu_info.is_some() {
             let offset = 0;
@@ -309,10 +311,11 @@ impl Renderer {
                 .command_manager
                 .bind_vertex_buffers(0, &[buffer], &[offset]);
 
+            can_be_drawn = true;
             self.mesh_binds += 1;
         }
 
-        (renderable.mesh.clone(), mesh.vertex_count)
+        (can_be_drawn, renderable.mesh.clone(), mesh.vertex_count)
     }
 
     fn bind_renderable_material(
@@ -355,8 +358,16 @@ impl Renderer {
 
         for renderable in renderables {
             if renderable.mesh != last_mesh_id {
-                (last_mesh_id, last_mesh_vertex_count) =
+                let (can_be_drawn, last_bound_mesh_id, last_bound_mesh_vertex_count) =
                     self.bind_renderable_mesh(renderable, asset_manager);
+
+                if !can_be_drawn {
+                    continue;
+                }
+                else {
+                    last_mesh_id = last_bound_mesh_id;
+                    last_mesh_vertex_count = last_bound_mesh_vertex_count;
+                }
             }
 
             if renderable.material != last_material_id {

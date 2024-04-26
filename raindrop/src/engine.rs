@@ -70,14 +70,6 @@ impl Engine {
     pub fn startup(&mut self) {
         trace!("Engine Starting");
 
-        let mut asset_manager_resource = self
-            .world
-            .get_resource_mut::<AssetManagerResource>()
-            .unwrap();
-
-        let mesh_path = "assets/models/monkey/monkey.glb".to_string();
-        asset_manager_resource.asset_manager.get_mesh(&mesh_path);
-
         self.startup_schedule.run(&mut self.world);
     }
 
