@@ -87,8 +87,7 @@ impl Raindrop {
 
         engine.startup();
 
-        let mut last_render_fps_print = 0.0;
-        let mut last_update_fps_print = 0.0;
+        let mut last_fps_print = 0.0;
 
         game_loop(
             event_loop,
@@ -97,28 +96,20 @@ impl Raindrop {
             60,
             0.1,
             move |g| {
-                if g.running_time() - last_update_fps_print > 1.0 {
+                // Has it been 1 second since the last fps print?
+                if g.running_time() - last_fps_print > 1.0 {
                     println!(
-                        "Update FPS: {:?}",
+                        "FPS: Render {:.1}, Update {:.1}",
+                        g.number_of_renders() as f64 / g.running_time(),
                         g.number_of_updates() as f64 / g.running_time()
                     );
 
-                    last_update_fps_print = g.running_time();
+                    last_fps_print = g.running_time();
                 }
 
                 g.game.update(g.fixed_time_step());
             },
             move |g| {
-                // Has it been 1 second since the last fps print?
-                if g.running_time() - last_render_fps_print > 1.0 {
-                    println!(
-                        "Render FPS: {:?}",
-                        g.number_of_renders() as f64 / g.running_time()
-                    );
-
-                    last_render_fps_print = g.running_time();
-                }
-
                 g.game.render(&g.window);
             },
             |g, event| {
