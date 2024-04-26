@@ -1,6 +1,8 @@
 mod mesh_gpu_info;
 mod vertex;
 
+use rand::prelude::*;
+
 pub use vertex::Vertex;
 
 use crate::asset_info::{AssetInfo, AssetStatus};
@@ -82,14 +84,15 @@ impl Mesh {
             }
         }
 
-        let mut vertices: Vec<Vertex> = vec![];
+        let mut rng = rand::thread_rng();
 
+        let mut vertices: Vec<Vertex> = vec![];
         if let Some(indices) = reader.read_indices() {
             for index in indices.into_u32() {
                 vertices.push(Vertex {
                     position: positions[index as usize],
                     normal: normals[index as usize],
-                    color: glm::vec3(1.0, 0.0, 0.0),
+                    color: glm::vec3(rng.gen(), rng.gen(), rng.gen()),
                 })
             }
         }

@@ -35,12 +35,8 @@ fn init_scene(mut commands: Commands, config: Res<GameConfig>) {
             transform.set_translation(glm::vec3(x as f32 * 2.0, 0.0, y as f32 * 2.0));
             transform.set_scale(glm::vec3(0.2, 0.2, 0.2));
 
-            let mesh_str = if y % 2 == 0 {
-                "assets/models/monkey/monkey.glb"
-            } else {
-                "assets/models/monkey/monkey.glb"
-            };
-
+            let mesh_str = "assets/models/monkey/monkey.glb";
+            
             commands.spawn((
                 transform,
                 Mesh {

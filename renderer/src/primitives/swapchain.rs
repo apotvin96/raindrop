@@ -114,7 +114,7 @@ impl Swapchain {
         //       GpuOnly is the only option for now that is working for me
         #[allow(deprecated)]
         let depth_image_allocation_create_info = AllocationCreateInfo {
-            usage: vk_mem::MemoryUsage::GpuOnly,
+            usage: vk_mem::MemoryUsage::Auto,
             required_flags: vk::MemoryPropertyFlags::DEVICE_LOCAL,
             ..Default::default()
         };
