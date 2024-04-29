@@ -72,7 +72,7 @@ impl Raindrop {
          * So,
          *     1. We take our existing app, and do a mem::replace over it
          *     2. mem::replace replaces self with a new empty Raindrop instance
-         *     3. The replaced objec is returned by mem replace, effectively giving us a now unowned
+         *     3. The replaced object is returned by mem replace, effectively giving us a now unowned
          *        instance of Raindrop (owned by the new app var)
          *     4. We hand it now to the game_loop so it can own it
          *

@@ -39,4 +39,8 @@ pub fn renderer_system(
         &renderables,
         &mut asset_manager.as_mut().asset_manager,
     );
+
+    asset_manager
+        .asset_manager
+        .get_audio(&"assets/sounds/CantinaBand60.wav".to_string());
 }

@@ -3,6 +3,7 @@ extern crate nalgebra_glm as glm;
 mod asset_info;
 mod gpu_info;
 mod mesh;
+mod sound;
 
 use std::{
     collections::HashMap,
@@ -14,15 +15,18 @@ use asset_info::AssetInfo;
 
 pub use gpu_info::{BufferGpuInfo, ImageGpuInfo};
 pub use mesh::{Mesh, Vertex};
+use sound::Sound;
 
 pub struct AssetManager {
     meshes: Arc<Mutex<HashMap<String, Arc<Mutex<Mesh>>>>>,
+    sounds: Arc<Mutex<HashMap<String, Arc<Mutex<Sound>>>>>,
 }
 
 impl AssetManager {
     pub fn new() -> AssetManager {
         AssetManager {
             meshes: Arc::new(Mutex::new(HashMap::new())),
+            sounds: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -49,14 +53,14 @@ impl AssetManager {
             status: asset_info::AssetStatus::Unloaded,
         };
 
-        let mesh = Mesh {
+        let mesh_info = Mesh {
             asset_info,
             gpu_info: None,
             vertices: vec![],
             vertex_count: 0,
         };
 
-        let mesh = Arc::new(Mutex::new(mesh));
+        let mesh = Arc::new(Mutex::new(mesh_info));
 
         self.meshes
             .lock()
@@ -71,6 +75,47 @@ impl AssetManager {
         });
 
         mesh.clone()
+    }
+
+    pub fn get_audio(&mut self, name: &String) -> Arc<Mutex<Sound>> {
+        let existing = {
+            let sounds_binding = self.sounds.lock().unwrap();
+
+            sounds_binding.get(name).cloned()
+        };
+
+        match existing {
+            Some(sound) => sound,
+            None => self.insert_audio(name),
+        }
+    }
+
+    fn insert_audio(&mut self, name: &str) -> Arc<Mutex<Sound>> {
+        let asset_info = AssetInfo {
+            id: name.to_owned(),
+            status: asset_info::AssetStatus::Unloaded,
+        };
+
+        let sound_info = Sound {
+            asset_info,
+            source: None,
+        };
+
+        let sound = Arc::new(Mutex::new(sound_info));
+
+        self.sounds
+            .lock()
+            .unwrap()
+            .insert(name.to_owned(), sound.clone());
+
+        let closure_sound = sound.clone();
+        spawn(move || {
+            let mut sound_binding = closure_sound.lock().unwrap();
+
+            sound_binding.load();
+        });
+
+        sound.clone()
     }
 }
 
