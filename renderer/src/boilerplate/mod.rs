@@ -1,4 +1,4 @@
-mod allocator;
+pub mod allocator;
 mod device;
 mod instance;
 mod physical_device;
@@ -10,9 +10,9 @@ use ash::{
 
 use std::mem::ManuallyDrop;
 
-use vk_mem::Allocator;
-
 use config::Config;
+
+use self::allocator::Allocator;
 
 use super::primitives::{CommandManager, Queue, Surface, Swapchain};
 
@@ -43,7 +43,7 @@ impl Boilerplate {
 
         let device = device::init_device(&instance, &physical_device, &queue_indices)?;
 
-        let allocator = allocator::init_allocator(&instance, &physical_device, &device)?;
+        let allocator = Allocator::new(&instance, &physical_device, &device)?;
 
         let queue = Queue::new(&device, queue_indices[0], queue_indices[1])?;
 
@@ -64,7 +64,6 @@ impl Boilerplate {
             command_manager: ManuallyDrop::new(command_manager),
         })
     }
-
 }
 
 impl Drop for Boilerplate {

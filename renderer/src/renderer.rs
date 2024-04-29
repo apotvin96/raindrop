@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, mem::size_of, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use ash::{
     vk::{
@@ -9,9 +9,8 @@ use ash::{
     },
     Device,
 };
-use asset_manager::{AssetManager, BufferGpuInfo, Mesh};
+use asset_manager::AssetManager;
 use log::trace;
-use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
 
 use config::Config;
 
@@ -249,45 +248,6 @@ impl Renderer {
         Ok(framebuffers)
     }
 
-    fn upload_mesh(allocator: &mut Allocator, mesh: &mut Mesh) {
-        trace!("Uploading: Mesh");
-
-        let (buffer, mut allocation) = unsafe {
-            // TODO: Figure out the right way to set memory usage since CpuToGpu is deprecated
-            #[allow(deprecated)]
-            allocator
-                .create_buffer(
-                    &BufferCreateInfo::default()
-                        .size((mesh.vertices.len() * size_of::<Vertex>()) as u64)
-                        .usage(BufferUsageFlags::VERTEX_BUFFER),
-                    &AllocationCreateInfo {
-                        usage: vk_mem::MemoryUsage::CpuToGpu,
-                        ..Default::default()
-                    },
-                )
-                .unwrap()
-        };
-
-        let memory_handle = unsafe { allocator.map_memory(&mut allocation).unwrap() };
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                mesh.vertices.as_ptr() as *const u8,
-                memory_handle,
-                mesh.vertices.len() * size_of::<Vertex>(),
-            );
-        }
-        unsafe { allocator.unmap_memory(&mut allocation) };
-
-        // let allocated_buffer = AllocatedBuffer { buffer, allocation };
-
-        mesh.add_gpu_info(BufferGpuInfo { buffer, allocation });
-
-        // mesh.vertex_buffer = Some(allocated_buffer);
-
-        // Clear out the vertices data since we've now uploaded it to the GPU
-        // mesh.vertices = vec![];
-    }
-
     fn bind_renderable_mesh(
         &mut self,
         renderable: &Renderable,
@@ -298,7 +258,13 @@ impl Renderer {
         let mut mesh = lock.unwrap();
 
         if mesh.needs_uploaded() {
-            Self::upload_mesh(&mut self.boilerplate.allocator, &mut mesh)
+            let vertices = mesh.vertices.clone();
+
+            mesh.add_gpu_info(
+                self.boilerplate
+                    .allocator
+                    .create_vertex_buffer(&vertices),
+            );
         }
 
         let mut can_be_drawn = false;
@@ -363,8 +329,7 @@ impl Renderer {
 
                 if !can_be_drawn {
                     continue;
-                }
-                else {
+                } else {
                     last_mesh_id = last_bound_mesh_id;
                     last_mesh_vertex_count = last_bound_mesh_vertex_count;
                 }
@@ -511,9 +476,7 @@ impl Renderer {
                 let mut mesh = mesh_handle.unwrap();
 
                 if let Some(gpu_info) = &mut mesh.gpu_info {
-                    self.boilerplate
-                        .allocator
-                        .destroy_buffer(gpu_info.buffer, &mut gpu_info.allocation)
+                    self.boilerplate.allocator.destroy_buffer(gpu_info)
                 };
             }
 

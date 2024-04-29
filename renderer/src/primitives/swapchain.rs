@@ -8,7 +8,9 @@ use ash::{
 };
 use config::Config;
 use log::warn;
-use vk_mem::{Alloc, AllocationCreateInfo, Allocator};
+use vk_mem::AllocationCreateInfo;
+
+use crate::boilerplate::allocator::Allocator;
 
 use super::{AllocatedImage, Queue, Surface};
 
@@ -127,15 +129,12 @@ impl Swapchain {
             ..Default::default()
         };
 
-        let (image, allocation) = unsafe {
-            allocator.create_image(
+        let depth_image = allocator
+            .create_image(
                 &depth_image_create_info,
                 &depth_image_allocation_create_info,
             )
-        }
-        .unwrap();
-
-        let depth_image = AllocatedImage { image, allocation };
+            .unwrap();
 
         let depth_image_view_create_info = ImageViewCreateInfo::default()
             .view_type(ImageViewType::TYPE_2D)
@@ -197,7 +196,7 @@ impl Swapchain {
         unsafe {
             self.device.destroy_image_view(self.depth_image_view, None);
 
-            allocator.destroy_image(self.depth_image.image, &mut self.depth_image.allocation);
+            allocator.destroy_image(&mut self.depth_image);
 
             for image_view in &self.image_views {
                 self.device.destroy_image_view(*image_view, None);
