@@ -1,4 +1,3 @@
-mod mesh_gpu_info;
 mod vertex;
 
 use rand::prelude::*;

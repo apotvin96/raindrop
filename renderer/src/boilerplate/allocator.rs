@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use ash::{
     vk::{self, BufferCreateInfo, BufferUsageFlags, ImageCreateInfo, PhysicalDevice},
     Device, Instance,

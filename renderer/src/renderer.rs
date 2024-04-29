@@ -2,10 +2,10 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use ash::{
     vk::{
-        self, AccessFlags, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp,
-        BufferCreateInfo, BufferUsageFlags, ClearValue, Framebuffer, FramebufferCreateInfo,
-        ImageLayout, PipelineStageFlags, Rect2D, RenderPass, RenderPassCreateInfo,
-        SampleCountFlags, SubpassDependency, SubpassDescription, SUBPASS_EXTERNAL,
+        self, AccessFlags, AttachmentDescription, AttachmentLoadOp, AttachmentStoreOp, ClearValue,
+        Framebuffer, FramebufferCreateInfo, ImageLayout, PipelineStageFlags, Rect2D, RenderPass,
+        RenderPassCreateInfo, SampleCountFlags, SubpassDependency, SubpassDescription,
+        SUBPASS_EXTERNAL,
     },
     Device,
 };
@@ -260,11 +260,7 @@ impl Renderer {
         if mesh.needs_uploaded() {
             let vertices = mesh.vertices.clone();
 
-            mesh.add_gpu_info(
-                self.boilerplate
-                    .allocator
-                    .create_vertex_buffer(&vertices),
-            );
+            mesh.add_gpu_info(self.boilerplate.allocator.create_vertex_buffer(&vertices));
         }
 
         let mut can_be_drawn = false;
