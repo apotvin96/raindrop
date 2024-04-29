@@ -106,6 +106,7 @@ impl Swapchain {
             image_views.push(image_view);
         }
 
+        // TODO: Create my own wrapper type for describing a new image to be created
         let depth_image_create_info = ImageCreateInfo::default()
             .image_type(ImageType::TYPE_2D)
             .format(Format::D32_SFLOAT)
