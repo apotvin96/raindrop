@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install alsa
+      run: sudo apt-get install libasound2-dev
     - name: Setup Vulkan SDK - edvn0          
       uses: edvn0/setup-vulkan-sdk@v1.3.0
       with:
