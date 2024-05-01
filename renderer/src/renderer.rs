@@ -14,22 +14,20 @@ use log::trace;
 
 use config::Config;
 
-use crate::mesh::MeshPushConstants;
 use crate::Boilerplate;
 use crate::Material;
 use crate::Renderable;
+use crate::{boilerplate::frame_data::FrameData, mesh::MeshPushConstants};
 use crate::{
     mesh::Vertex,
     primitives::{Pipeline, Shader, Swapchain},
 };
 
 pub struct Renderer {
+    config: Config,
     boilerplate: Boilerplate,
     render_pass: RenderPass,
     framebuffers: Vec<Framebuffer>,
-    render_semaphore: vk::Semaphore,
-    present_semaphore: vk::Semaphore,
-    fence: vk::Fence,
     pipelines: HashMap<String, Rc<RefCell<Pipeline>>>,
     materials: HashMap<String, Rc<RefCell<Material>>>,
     framenumber: u64,
@@ -89,34 +87,6 @@ impl Renderer {
             Err(e) => return Err("Failed to create pipeline: ".to_owned() + &e.to_string()),
         };
 
-        let fence_create_info =
-            vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
-
-        let fence = match unsafe { boilerplate.device.create_fence(&fence_create_info, None) } {
-            Ok(fence) => fence,
-            Err(e) => return Err("Failed to create fence: ".to_owned() + &e.to_string()),
-        };
-
-        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
-
-        let render_semaphore = match unsafe {
-            boilerplate
-                .device
-                .create_semaphore(&semaphore_create_info, None)
-        } {
-            Ok(semaphore) => semaphore,
-            Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
-        };
-
-        let present_semaphore = match unsafe {
-            boilerplate
-                .device
-                .create_semaphore(&semaphore_create_info, None)
-        } {
-            Ok(semaphore) => semaphore,
-            Err(e) => return Err("Failed to create semaphore: ".to_owned() + &e.to_string()),
-        };
-
         let mut pipelines = HashMap::new();
         pipelines.insert(
             "meshpipeline".to_string(),
@@ -132,12 +102,10 @@ impl Renderer {
         );
 
         Ok(Renderer {
+            config: config.clone(),
             boilerplate,
             render_pass,
             framebuffers,
-            fence,
-            render_semaphore,
-            present_semaphore,
             pipelines,
             materials,
             framenumber: 0,
@@ -248,6 +216,11 @@ impl Renderer {
         Ok(framebuffers)
     }
 
+    fn current_frame_data(&self) -> &FrameData {
+        &self.boilerplate.frame_data
+            [(self.framenumber % self.config.renderer.frame_overlap as u64) as usize]
+    }
+
     fn bind_renderable_mesh(
         &mut self,
         renderable: &Renderable,
@@ -269,7 +242,7 @@ impl Renderer {
             let offset = 0;
             let buffer = mesh.gpu_info.as_mut().unwrap().buffer;
 
-            self.boilerplate
+            self.current_frame_data()
                 .command_manager
                 .bind_vertex_buffers(0, &[buffer], &[offset]);
 
@@ -286,7 +259,7 @@ impl Renderer {
     ) -> (Option<Rc<RefCell<Material>>>, String) {
         let material = self.materials.get(&renderable.material).unwrap();
 
-        self.boilerplate
+        self.current_frame_data()
             .command_manager
             .bind_pipeline(&material.borrow().pipeline.borrow());
 
@@ -342,7 +315,7 @@ impl Renderer {
                 render_matrix: mvp,
             };
 
-            self.boilerplate.command_manager.push_constants(
+            self.current_frame_data().command_manager.push_constants(
                 last_material
                     .as_ref()
                     .unwrap()
@@ -353,7 +326,7 @@ impl Renderer {
                 push_constants,
             );
 
-            self.boilerplate
+            self.current_frame_data()
                 .command_manager
                 .draw(last_mesh_vertex_count, 1, 0, 0);
         }
@@ -376,22 +349,30 @@ impl Renderer {
         trace!("Renderer Rendering");
 
         unsafe {
-            self.boilerplate
-                .device
-                .wait_for_fences(&[self.fence], true, 1000000000)
+            self.boilerplate.device.wait_for_fences(
+                &[self.current_frame_data().render_fence],
+                true,
+                1000000000,
+            )
         }
         .expect("Failed to wait for fence");
 
-        unsafe { self.boilerplate.device.reset_fences(&[self.fence]) }
-            .expect("Failed to reset fence");
+        unsafe {
+            self.boilerplate
+                .device
+                .reset_fences(&[self.current_frame_data().render_fence])
+        }
+        .expect("Failed to reset fence");
 
         let (image_index, _) = self
             .boilerplate
             .swapchain
-            .acquire_next_image(self.present_semaphore)
+            .acquire_next_image(self.current_frame_data().present_semaphore)
             .expect("Failed to acquire next image");
 
-        self.boilerplate.command_manager.begin_main_command_buffer();
+        self.current_frame_data()
+            .command_manager
+            .begin_main_command_buffer();
 
         let flash = 0.0;
 
@@ -418,29 +399,31 @@ impl Renderer {
             .framebuffer(self.framebuffers[image_index as usize])
             .clear_values(&clear_values);
 
-        self.boilerplate
+        self.current_frame_data()
             .command_manager
             .begin_render_pass(&render_pass_begin_info);
 
         self.render_objects(projection_matrix, view_matrix, renderables, asset_manager);
 
-        self.boilerplate.command_manager.end_render_pass();
+        self.current_frame_data().command_manager.end_render_pass();
 
-        self.boilerplate
+        self.current_frame_data()
             .command_manager
             .end_main_command_buffer()
             .unwrap();
 
-        self.boilerplate.command_manager.submit_main_command_buffer(
-            &[self.present_semaphore],
-            &[self.present_semaphore],
-            self.fence,
-        );
+        self.current_frame_data()
+            .command_manager
+            .submit_main_command_buffer(
+                &[self.current_frame_data().present_semaphore],
+                &[self.current_frame_data().present_semaphore],
+                self.current_frame_data().render_fence,
+            );
 
         self.boilerplate.swapchain.present(
             &self.boilerplate.queue,
             image_index,
-            &[self.present_semaphore],
+            &[self.current_frame_data().present_semaphore],
         );
 
         self.framenumber += 1;
@@ -450,18 +433,7 @@ impl Renderer {
         trace!("Cleaning: Renderer");
 
         unsafe {
-            self.boilerplate
-                .device
-                .wait_for_fences(&[self.fence], true, 1000000000)
-                .expect("Failed to wait for fence");
-
-            self.boilerplate
-                .device
-                .destroy_semaphore(self.render_semaphore, None);
-            self.boilerplate
-                .device
-                .destroy_semaphore(self.present_semaphore, None);
-            self.boilerplate.device.destroy_fence(self.fence, None);
+            self.boilerplate.wait_for_fences();
 
             self.materials = HashMap::new();
             self.pipelines = HashMap::new();

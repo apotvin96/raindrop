@@ -14,6 +14,7 @@ pub struct RendererConfig {
     pub vsync: bool,
     pub window_width: u32,
     pub window_height: u32,
+    pub frame_overlap: u32,
 }
 
 impl Config {
@@ -36,6 +37,7 @@ impl Default for Config {
                 vsync: true,
                 window_width: 800,
                 window_height: 600,
+                frame_overlap: 2,
             },
         }
     }

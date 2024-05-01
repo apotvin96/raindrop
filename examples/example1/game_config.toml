@@ -5,3 +5,4 @@ name = "Raindrop"
 window_width = 800
 window_height = 600
 vsync = true
+frame_overlap = 2

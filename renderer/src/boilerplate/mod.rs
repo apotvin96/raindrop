@@ -1,5 +1,6 @@
 pub mod allocator;
 mod device;
+pub mod frame_data;
 mod instance;
 mod physical_device;
 
@@ -12,9 +13,9 @@ use std::mem::ManuallyDrop;
 
 use config::Config;
 
-use self::allocator::Allocator;
+use self::{allocator::Allocator, frame_data::FrameData};
 
-use super::primitives::{CommandManager, Queue, Surface, Swapchain};
+use super::primitives::{Queue, Surface, Swapchain};
 
 pub struct Boilerplate {
     pub instance: Instance,
@@ -25,8 +26,8 @@ pub struct Boilerplate {
     pub device: Device,
     pub allocator: ManuallyDrop<Allocator>,
     pub queue: Queue,
+    pub frame_data: ManuallyDrop<Vec<FrameData>>,
     pub swapchain: Swapchain,
-    pub command_manager: ManuallyDrop<CommandManager>,
 }
 
 impl Boilerplate {
@@ -47,9 +48,12 @@ impl Boilerplate {
 
         let queue = Queue::new(&device, queue_indices[0], queue_indices[1])?;
 
-        let swapchain = Swapchain::new(config, &instance, &device, &allocator, &surface, &queue)?;
+        let mut frame_data = vec![];
+        for _ in 0..config.renderer.frame_overlap {
+            frame_data.push(FrameData::new(&device, &queue)?);
+        }
 
-        let command_manager = CommandManager::new(&device, &queue)?;
+        let swapchain = Swapchain::new(config, &instance, &device, &allocator, &surface, &queue)?;
 
         Ok(Boilerplate {
             instance,
@@ -60,17 +64,31 @@ impl Boilerplate {
             device,
             allocator: ManuallyDrop::new(allocator),
             queue,
+            frame_data: ManuallyDrop::new(frame_data),
             swapchain,
-            command_manager: ManuallyDrop::new(command_manager),
         })
+    }
+
+    pub fn wait_for_fences(&self) {
+        unsafe {
+            for frame_data in self.frame_data.iter() {
+                self.device
+                    .wait_for_fences(&[frame_data.render_fence], true, u64::MAX)
+                    .unwrap();
+                self.device
+                    .reset_fences(&[frame_data.render_fence])
+                    .unwrap();
+            }
+        }
     }
 }
 
 impl Drop for Boilerplate {
     fn drop(&mut self) {
         unsafe {
-            ManuallyDrop::drop(&mut self.command_manager);
             self.swapchain.free(&mut self.allocator);
+
+            ManuallyDrop::drop(&mut self.frame_data);
 
             ManuallyDrop::drop(&mut self.allocator);
             self.device.destroy_device(None);
