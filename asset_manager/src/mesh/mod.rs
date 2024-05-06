@@ -4,13 +4,13 @@ use rand::prelude::*;
 
 pub use vertex::Vertex;
 
-use gpu_info::BufferGpuInfo;
+use gpu_info::Buffer;
 
 use crate::asset_info::{AssetInfo, AssetStatus};
 
 pub struct Mesh {
     pub asset_info: AssetInfo,
-    pub gpu_info: Option<BufferGpuInfo>,
+    pub gpu_info: Option<Buffer>,
     pub vertices: Vec<Vertex>,
     pub vertex_count: u32,
 }
@@ -46,7 +46,7 @@ impl Mesh {
     }
 
     // The mesh has been uploaded to the GPU and we are storing the GPU info for later reference
-    pub fn add_gpu_info(&mut self, gpu_info: BufferGpuInfo) {
+    pub fn add_gpu_info(&mut self, gpu_info: Buffer) {
         self.gpu_info = Some(gpu_info);
         self.asset_info.status = AssetStatus::Uploaded;
 

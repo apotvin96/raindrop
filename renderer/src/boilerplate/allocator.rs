@@ -4,7 +4,7 @@ use ash::{
 };
 use vk_mem::{Alloc, AllocationCreateInfo};
 
-use gpu_info::BufferGpuInfo;
+use gpu_info::Buffer;
 
 use crate::primitives::AllocatedImage;
 use asset_manager::Vertex;
@@ -48,7 +48,7 @@ impl Allocator {
         }
     }
 
-    pub fn create_vertex_buffer(&self, vertices: &[Vertex]) -> BufferGpuInfo {
+    pub fn create_vertex_buffer(&self, vertices: &[Vertex]) -> Buffer {
         let (buffer, mut allocation) = unsafe {
             self.allocator
                 .create_buffer(
@@ -76,10 +76,10 @@ impl Allocator {
         }
         unsafe { self.allocator.unmap_memory(&mut allocation) };
 
-        BufferGpuInfo { buffer, allocation }
+        Buffer { buffer, allocation }
     }
 
-    pub fn destroy_buffer(&self, buffer: &mut BufferGpuInfo) {
+    pub fn destroy_buffer(&self, buffer: &mut Buffer) {
         unsafe {
             self.allocator
                 .destroy_buffer(buffer.buffer, &mut buffer.allocation);

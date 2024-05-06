@@ -1,5 +1,5 @@
-mod buffer_gpu_info;
-mod image_gpu_info;
+mod buffer;
+mod image;
 
-pub use buffer_gpu_info::BufferGpuInfo;
-pub use image_gpu_info::ImageGpuInfo;
+pub use buffer::Buffer;
+pub use image::Image;
