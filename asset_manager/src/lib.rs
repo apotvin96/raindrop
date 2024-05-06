@@ -1,7 +1,6 @@
 extern crate nalgebra_glm as glm;
 
 mod asset_info;
-mod gpu_info;
 mod mesh;
 mod sound;
 
@@ -13,7 +12,6 @@ use std::{
 
 use asset_info::AssetInfo;
 
-pub use gpu_info::{BufferGpuInfo, ImageGpuInfo};
 pub use mesh::{Mesh, Vertex};
 use sound::Sound;
 

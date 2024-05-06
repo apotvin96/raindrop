@@ -3,10 +3,11 @@ resolver = "2"
 members = [
     "asset_manager",
     "config",
+    "gpu_info",
     "logger",
     "raindrop",
     "renderer",
-    
+
     "examples/*",
 ]
 

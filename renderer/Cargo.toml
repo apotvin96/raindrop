@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 asset_manager = { path = "../asset_manager" }
 config = { path = "../config" }
+gpu_info = { path = "../gpu_info" }
 
 ash = { version = "0.38", features = ["linked"] }
 ash-window = "0.13"

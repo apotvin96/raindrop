@@ -4,9 +4,9 @@ use rand::prelude::*;
 
 pub use vertex::Vertex;
 
-use crate::asset_info::{AssetInfo, AssetStatus};
+use gpu_info::BufferGpuInfo;
 
-use crate::gpu_info::BufferGpuInfo;
+use crate::asset_info::{AssetInfo, AssetStatus};
 
 pub struct Mesh {
     pub asset_info: AssetInfo,

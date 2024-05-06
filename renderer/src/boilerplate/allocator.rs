@@ -4,8 +4,10 @@ use ash::{
 };
 use vk_mem::{Alloc, AllocationCreateInfo};
 
+use gpu_info::BufferGpuInfo;
+
 use crate::primitives::AllocatedImage;
-use asset_manager::{BufferGpuInfo, Vertex};
+use asset_manager::Vertex;
 
 pub struct Allocator {
     allocator: vk_mem::Allocator,

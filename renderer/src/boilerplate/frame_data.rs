@@ -1,5 +1,5 @@
 use ash::{
-    vk::{Fence, FenceCreateFlags, FenceCreateInfo, Semaphore, SemaphoreCreateInfo},
+    vk::{DescriptorSet, Fence, FenceCreateFlags, FenceCreateInfo, Semaphore, SemaphoreCreateInfo},
     Device,
 };
 
@@ -13,6 +13,11 @@ pub struct FrameData {
     pub render_fence: Fence,
 
     pub command_manager: CommandManager,
+
+    global_descriptor: DescriptorSet,
+    pass_descriptor: DescriptorSet,
+    material_descriptor: DescriptorSet,
+    object_descriptor: DescriptorSet,
 }
 
 impl FrameData {
@@ -49,6 +54,10 @@ impl FrameData {
             render_semaphore,
             render_fence,
             command_manager,
+            global_descriptor: DescriptorSet::null(),
+            pass_descriptor: DescriptorSet::null(),
+            material_descriptor: DescriptorSet::null(),
+            object_descriptor: DescriptorSet::null(),
         })
     }
 }
