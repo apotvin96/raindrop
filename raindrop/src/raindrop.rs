@@ -3,10 +3,7 @@ use std::sync::Arc;
 use bevy_ecs::schedule::IntoSystemConfigs;
 use config::Config;
 use logger::init_logging;
-use winit::{
-    event_loop::EventLoop,
-    window::{Window, WindowBuilder},
-};
+use winit::{dpi::LogicalSize, event_loop::EventLoop, window::Window};
 
 use crate::engine::{Engine, ScheduleType};
 
@@ -32,14 +29,14 @@ impl Raindrop {
 
         let event_loop = EventLoop::new().unwrap();
 
-        let window = WindowBuilder::new()
+        let window_attributes = Window::default_attributes()
             .with_title(config.info.name.clone())
-            .with_inner_size(winit::dpi::LogicalSize::new(
-                config.renderer.window_width,
-                config.renderer.window_height,
-            ))
-            .build(&event_loop)
-            .unwrap();
+            .with_inner_size(winit::dpi::Size::Logical(LogicalSize::new(
+                config.renderer.window_width as f64,
+                config.renderer.window_height as f64,
+            )));
+
+        let window = event_loop.create_window(window_attributes).unwrap();
 
         let engine = Engine::new(config, &window).expect("Failed to init engine");
 

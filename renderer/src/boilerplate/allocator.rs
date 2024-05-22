@@ -21,9 +21,11 @@ impl Allocator {
     ) -> Result<Allocator, String> {
         let create_info = vk_mem::AllocatorCreateInfo::new(instance, device, *physical_device);
 
-        match vk_mem::Allocator::new(create_info) {
-            Ok(allocator) => Ok(Allocator { allocator }),
-            Err(e) => Err("Failed to create allocator: ".to_owned() + &e.to_string()),
+        unsafe {
+            match vk_mem::Allocator::new(create_info) {
+                Ok(allocator) => Ok(Allocator { allocator }),
+                Err(e) => Err("Failed to create allocator: ".to_owned() + &e.to_string()),
+            }
         }
     }
 
