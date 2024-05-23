@@ -42,36 +42,24 @@ impl Queue {
         let mut transfer_only_queue_index = NONE_QUEUE_INDEX;
 
         for (index, queue_family_properties) in properties.iter().enumerate() {
-            let queue_supports_surface = surface
-                .is_queue_family_supported(physical_device, index as u32)
-                .unwrap();
-
             if queue_family_properties.queue_count == 0 {
                 continue;
             }
 
-            if queue_family_properties
-                .queue_flags
-                .contains(vk::QueueFlags::GRAPHICS)
-                && queue_supports_surface
-            {
+            if Queue::queue_family_supports_graphics(
+                queue_family_properties,
+                index as u32,
+                physical_device,
+                surface,
+            ) {
                 main_queue_index = index as u32;
             }
 
-            if queue_family_properties
-                .queue_flags
-                .contains(vk::QueueFlags::TRANSFER)
-            {
-                // If we haven't found a transfer queue yet, or we found one that has only a transfer queue prefer that
-                //   The reason is that a having separate queue for transfer and graphics is preferred for performance
-                //   but not guaranteed in a system
-                if transfer_only_queue_index == NONE_QUEUE_INDEX
-                    || !queue_family_properties
-                        .queue_flags
-                        .contains(vk::QueueFlags::GRAPHICS)
-                {
-                    transfer_only_queue_index = index as u32;
-                }
+            if Queue::queue_family_supports_transfer(
+                queue_family_properties,
+                transfer_only_queue_index,
+            ) {
+                transfer_only_queue_index = index as u32;
             }
         }
 
@@ -84,5 +72,39 @@ impl Queue {
         }
 
         Ok([main_queue_index, transfer_only_queue_index])
+    }
+
+    fn queue_family_supports_graphics(
+        queue_family_properties: &vk::QueueFamilyProperties,
+        queue_family_index: u32,
+        physical_device: &PhysicalDevice,
+        surface: &Surface,
+    ) -> bool {
+        let queue_supports_surface = surface
+            .is_queue_family_supported(physical_device, queue_family_index)
+            .unwrap();
+
+        let can_do_graphics = queue_family_properties
+            .queue_flags
+            .contains(vk::QueueFlags::GRAPHICS);
+
+        queue_supports_surface && can_do_graphics
+    }
+
+    fn queue_family_supports_transfer(
+        queue_family_properties: &vk::QueueFamilyProperties,
+        transfer_queue_index: u32,
+    ) -> bool {
+        let can_do_transfer = queue_family_properties
+            .queue_flags
+            .contains(vk::QueueFlags::TRANSFER);
+
+        let no_transfer_queue_found_yet = transfer_queue_index == NONE_QUEUE_INDEX;
+
+        let is_transfer_only_queue = !queue_family_properties
+            .queue_flags
+            .contains(vk::QueueFlags::GRAPHICS);
+
+        can_do_transfer && (no_transfer_queue_found_yet || is_transfer_only_queue)
     }
 }
